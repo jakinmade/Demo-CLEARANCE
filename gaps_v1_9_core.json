@@ -1,0 +1,3074 @@
+{
+  "library_version": "1.10",
+  "last_updated": "2026-04-19",
+  "description": "CLEARANCE GAP Library v1.9.4 \u2014 deterministic engine complete. 25 gaps, 4 vertical layers, 26 signals. V1.9.4 renames severity_logic \u2192 exposure_logic and likelihood_logic \u2192 recurrence_logic across all 25 gaps, aligning field names with CLEARANCE's identity as a governance exposure calculator, not a risk scoring model. Engine remains fully deterministic end-to-end: signal \u2192 gap \u2192 exposure \u2192 priority.",
+  "gap_definition": "A gap = a single, observable control failure, with clear evidence signals and an implied remediation path",
+  "severity_scale": {
+    "CRITICAL": "Compound or acute failure \u2014 immediate regulatory exposure, multiple simultaneous obligations breached",
+    "HIGH": "Direct regulatory or legal enforcement exposure \u2014 named obligation unmet, enforcement trigger present",
+    "MEDIUM": "Process or documentation gap \u2014 real risk but no immediate single enforcement trigger"
+  },
+  "domain_architecture": {
+    "description": "Three-layer model separating universal controls from vertical-specific gaps",
+    "layer_1_core": {
+      "label": "Core",
+      "description": "Structural governance gaps applicable to every agentic AI deployment regardless of sector",
+      "gap_ids": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "GDPR-G01-LAWFUL-BASIS",
+        "GDPR-G02-PURPOSE-LIMITATION",
+        "GDPR-G03-RETENTION",
+        "GDPR-G04-DSR-PROCESS",
+        "GDPR-G05-VENDOR-DPA"
+      ],
+      "applies_to": [
+        "Healthcare",
+        "Financial Services",
+        "Recruitment/HR",
+        "Legal",
+        "All sectors"
+      ]
+    },
+    "layer_2_hr": {
+      "label": "HR Vertical",
+      "description": "Gaps specific to AI use across the employee lifecycle \u2014 hiring, monitoring, performance, discipline",
+      "gap_ids": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "HR-G06",
+        "HR-G06b",
+        "HR-G07",
+        "HR-G08",
+        "HR-G09",
+        "HR-G10",
+        "GDPR-G01-LAWFUL-BASIS",
+        "GDPR-G02-PURPOSE-LIMITATION",
+        "GDPR-G03-RETENTION",
+        "GDPR-G04-DSR-PROCESS",
+        "GDPR-G05-VENDOR-DPA"
+      ],
+      "applies_to": [
+        "Recruitment/HR"
+      ]
+    },
+    "layer_3_legal": {
+      "label": "Legal Vertical",
+      "description": "Gaps specific to AI use in legal service delivery \u2014 drafting, research, client obligations",
+      "gap_ids": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "LEG-G09",
+        "LEG-G10",
+        "LEG-G11",
+        "LEG-G12",
+        "GDPR-G01-LAWFUL-BASIS",
+        "GDPR-G02-PURPOSE-LIMITATION",
+        "GDPR-G03-RETENTION",
+        "GDPR-G04-DSR-PROCESS",
+        "GDPR-G05-VENDOR-DPA"
+      ],
+      "applies_to": [
+        "Legal"
+      ]
+    },
+    "layer_4_finserv": {
+      "label": "Financial Services Control Layer (FCA-aligned)",
+      "description": "Gaps specific to AI use in FCA-regulated financial services \u2014 suitability, SM&CR accountability, audit trail, Consumer Duty outcome monitoring, and algorithmic fairness",
+      "gap_ids": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "FS-G13",
+        "FS-G14",
+        "FS-G15",
+        "FS-G16",
+        "FS-G17",
+        "GDPR-G01-LAWFUL-BASIS",
+        "GDPR-G02-PURPOSE-LIMITATION",
+        "GDPR-G03-RETENTION",
+        "GDPR-G04-DSR-PROCESS",
+        "GDPR-G05-VENDOR-DPA"
+      ],
+      "applies_to": [
+        "Financial Services"
+      ]
+    }
+  },
+  "pipeline_definition": {
+    "description": "End-to-end execution flow from intake to report",
+    "steps": [
+      {
+        "step": 1,
+        "name": "Input",
+        "description": "Completed intake form received and verified call conducted",
+        "inputs": [
+          "CLEARANCE_Intake_Form"
+        ],
+        "outputs": [
+          "Structured intake object with controls, signals and incident data"
+        ]
+      },
+      {
+        "step": 2,
+        "name": "Signal detection",
+        "description": "Intake answers mapped to signal boolean values. Controls (rule_enforcement, audit_trail, logging) resolved to no_rule_enforcement, no_audit_trail, no_logging signals first. All signals resolved before gap engine runs.",
+        "inputs": [
+          "Structured intake object"
+        ],
+        "outputs": [
+          "Signal map: {signal_id: true|false} for all 26 signals"
+        ],
+        "logic": "See signals_definition for derivation rules per signal"
+      },
+      {
+        "step": 3,
+        "name": "Gap activation",
+        "description": "Signal map evaluated against each gap's expr logic",
+        "inputs": [
+          "Signal map"
+        ],
+        "outputs": [
+          "Activated gap list with severity and domain context"
+        ],
+        "logic": "Evaluate expr AST for each gap; include gap if expr resolves to true"
+      },
+      {
+        "step": 4,
+        "name": "Scoring",
+        "description": "Aggregate risk across activated gaps by domain layer",
+        "inputs": [
+          "Activated gap list"
+        ],
+        "outputs": [
+          "Risk score per gap, aggregate posture rating (LOW/MODERATE/HIGH/CRITICAL)"
+        ],
+        "logic": "Use risk_score.priority per gap; overall = highest priority across activated gaps"
+      },
+      {
+        "step": 5,
+        "name": "Report generation",
+        "description": "Produce prioritised client report from activated gaps",
+        "inputs": [
+          "Activated gap list with scores"
+        ],
+        "outputs": [
+          "CLEARANCE Report: Section 01 (gaps), 02 (risk), 03 (evidence required), 04 (remediation)"
+        ],
+        "logic": "Use sector_risk narrative for client-facing text; sort by priority ascending"
+      }
+    ]
+  },
+  "signals_definition": {
+    "has_automated_decision": {
+      "description": "True if any decision type has automation_level of semi_automated or fully_automated",
+      "derived_from": [
+        "decision_types[].automation_level"
+      ],
+      "logic": "any(automation_level in [semi_automated, fully_automated])",
+      "type": "binary",
+      "signal_id": "has_automated_decision"
+    },
+    "has_external_data": {
+      "description": "True if any data source is external or third_party",
+      "derived_from": [
+        "data_sources[].kind"
+      ],
+      "logic": "any(kind in [external, third_party])",
+      "type": "binary",
+      "signal_id": "has_external_data"
+    },
+    "has_weak_validation": {
+      "description": "True if any data source has validation_strength of none or partial",
+      "derived_from": [
+        "data_sources[].validation_strength"
+      ],
+      "logic": "any(validation_strength in [none, partial])",
+      "type": "binary",
+      "signal_id": "has_weak_validation"
+    },
+    "has_high_impact_no_override": {
+      "description": "True if any high-impact decision type has human_override set to false",
+      "derived_from": [
+        "decision_types[].impact_level",
+        "decision_types[].human_override"
+      ],
+      "logic": "any(impact_level == high AND human_override == false)",
+      "type": "binary",
+      "signal_id": "has_high_impact_no_override"
+    },
+    "has_incidents": {
+      "description": "True if the incidents array is non-empty",
+      "derived_from": [
+        "incidents[]"
+      ],
+      "logic": "len(incidents) > 0",
+      "type": "binary",
+      "signal_id": "has_incidents"
+    },
+    "no_corrective_action": {
+      "description": "True if any incident has corrective_action_taken set to false",
+      "derived_from": [
+        "incidents[].corrective_action_taken"
+      ],
+      "logic": "any(corrective_action_taken == false)",
+      "type": "binary",
+      "signal_id": "no_corrective_action"
+    },
+    "multiple_high_gaps": {
+      "description": "True if two or more of G01-G04 structural conditions are met simultaneously",
+      "derived_from": [
+        "decision_types[].automation_level",
+        "controls.rule_enforcement",
+        "data_sources[].kind",
+        "data_sources[].validation_strength",
+        "controls.logging",
+        "controls.audit_trail",
+        "decision_types[].impact_level",
+        "decision_types[].human_override"
+      ],
+      "logic": "count(G01_condition, G02_condition, G03_condition, G04_condition) >= 2",
+      "type": "derived",
+      "signal_id": "multiple_high_gaps"
+    },
+    "all_gaps_present": {
+      "description": "True if rule_enforcement is false, audit_trail is false, and has_high_impact_no_override is true",
+      "derived_from": [
+        "controls.rule_enforcement",
+        "controls.audit_trail",
+        "decision_types[].impact_level",
+        "decision_types[].human_override"
+      ],
+      "logic": "rule_enforcement == false AND audit_trail == false AND has_high_impact_no_override == true",
+      "type": "derived",
+      "signal_id": "all_gaps_present"
+    },
+    "no_remediation_roadmap": {
+      "description": "True if all three controls are absent, or if incidents exist with no corrective action taken",
+      "derived_from": [
+        "controls.rule_enforcement",
+        "controls.audit_trail",
+        "controls.logging",
+        "incidents[].corrective_action_taken"
+      ],
+      "logic": "(rule_enforcement == false AND audit_trail == false AND logging == false) OR (has_incidents AND no_corrective_action)",
+      "type": "derived",
+      "signal_id": "no_remediation_roadmap"
+    },
+    "has_employee_monitoring_ai": {
+      "description": "True if organisation uses AI to monitor employee behaviour, communications, productivity or location",
+      "derived_from": [
+        "intake.hr_monitoring_tools"
+      ],
+      "logic": "hr_monitoring_tools == true",
+      "type": "binary",
+      "signal_id": "has_employee_monitoring_ai"
+    },
+    "has_performance_scoring_ai": {
+      "description": "True if AI is used to generate, influence or determine employee performance scores or ratings",
+      "derived_from": [
+        "intake.hr_performance_ai"
+      ],
+      "logic": "hr_performance_ai == true",
+      "type": "binary",
+      "signal_id": "has_performance_scoring_ai"
+    },
+    "has_disciplinary_ai": {
+      "description": "True if AI is used to support, recommend or influence disciplinary decisions about employees",
+      "derived_from": [
+        "intake.hr_disciplinary_ai"
+      ],
+      "logic": "hr_disciplinary_ai == true",
+      "type": "binary",
+      "signal_id": "has_disciplinary_ai"
+    },
+    "uses_ai_for_legal_drafting": {
+      "description": "True if AI tools are used to draft, research or generate content used in client legal work",
+      "derived_from": [
+        "intake.legal_ai_drafting"
+      ],
+      "logic": "legal_ai_drafting == true",
+      "type": "binary",
+      "signal_id": "uses_ai_for_legal_drafting"
+    },
+    "no_client_ai_disclosure": {
+      "description": "True if the organisation has no documented policy or practice for disclosing AI involvement to clients",
+      "derived_from": [
+        "intake.legal_client_disclosure_policy"
+      ],
+      "logic": "legal_client_disclosure_policy == false OR legal_client_disclosure_policy == absent",
+      "type": "binary",
+      "signal_id": "no_client_ai_disclosure"
+    },
+    "no_employee_monitoring_disclosure": {
+      "description": "True if employees have not been informed of AI monitoring before it commences, or no monitoring policy is published",
+      "derived_from": [
+        "intake.hr_monitoring_disclosure"
+      ],
+      "logic": "hr_monitoring_disclosure == false OR hr_monitoring_disclosure == absent",
+      "type": "binary",
+      "signal_id": "no_employee_monitoring_disclosure"
+    },
+    "uses_ai_for_workforce_analytics": {
+      "description": "True if AI or algorithmic tools are used to analyse workforce data \u2014 headcount planning, attrition prediction, skills gap analysis, pay modelling",
+      "derived_from": [
+        "intake.hr_analytics_tools"
+      ],
+      "logic": "hr_analytics_tools == true",
+      "type": "binary",
+      "signal_id": "uses_ai_for_workforce_analytics"
+    },
+    "has_ai_in_termination_process": {
+      "description": "True if AI output contributed to or informed a decision to terminate employment, trigger redundancy selection, or recommend dismissal",
+      "derived_from": [
+        "intake.hr_termination_ai"
+      ],
+      "logic": "hr_termination_ai == true",
+      "type": "binary",
+      "signal_id": "has_ai_in_termination_process"
+    },
+    "uses_ai_for_legal_advice": {
+      "description": "True if AI tools are used to generate or contribute to legal advice, opinions or recommendations delivered to clients",
+      "derived_from": [
+        "intake.legal_ai_advice"
+      ],
+      "logic": "legal_ai_advice == true",
+      "type": "binary",
+      "signal_id": "uses_ai_for_legal_advice"
+    },
+    "uses_ai_with_client_data": {
+      "description": "True if AI tools process client personal data \u2014 documents, correspondence, case files \u2014 without a documented data segregation and confidentiality control",
+      "derived_from": [
+        "intake.legal_ai_client_data"
+      ],
+      "logic": "legal_ai_client_data == true",
+      "type": "binary",
+      "signal_id": "uses_ai_with_client_data"
+    },
+    "has_finserv_suitability_ai": {
+      "description": "True if AI is used to generate or materially influence client suitability assessments or investment recommendations",
+      "derived_from": [
+        "intake.fs_suitability_ai"
+      ],
+      "logic": "fs_suitability_ai == true",
+      "type": "binary",
+      "signal_id": "has_finserv_suitability_ai"
+    },
+    "no_smcr_ai_owner": {
+      "description": "True if no Senior Manager is named in Statements of Responsibilities as accountable for the AI decision system",
+      "derived_from": [
+        "intake.fs_smcr_ai_owner"
+      ],
+      "logic": "fs_smcr_ai_owner == false OR fs_smcr_ai_owner == absent",
+      "type": "binary",
+      "signal_id": "no_smcr_ai_owner"
+    },
+    "no_outcome_monitoring": {
+      "description": "True if no mechanism exists to monitor and evidence client outcomes from AI-generated recommendations or decisions",
+      "derived_from": [
+        "intake.fs_outcome_monitoring"
+      ],
+      "logic": "fs_outcome_monitoring == false OR fs_outcome_monitoring == absent",
+      "type": "binary",
+      "signal_id": "no_outcome_monitoring"
+    },
+    "no_bias_assessment": {
+      "description": "True if no bias or fairness assessment has been conducted on the AI model before or after deployment",
+      "derived_from": [
+        "intake.fs_bias_assessment"
+      ],
+      "logic": "fs_bias_assessment == false OR fs_bias_assessment == absent",
+      "type": "binary",
+      "signal_id": "no_bias_assessment"
+    },
+    "no_rule_enforcement": {
+      "description": "True if no documented, version-controlled ruleset governs what the AI system is and is not permitted to decide",
+      "derived_from": [
+        "controls.rule_enforcement"
+      ],
+      "logic": "controls.rule_enforcement == false",
+      "type": "binary",
+      "signal_id": "no_rule_enforcement"
+    },
+    "no_audit_trail": {
+      "description": "True if no sealed, tamper-evident, write-protected audit trail exists for AI decisions",
+      "derived_from": [
+        "controls.audit_trail"
+      ],
+      "logic": "controls.audit_trail == false",
+      "type": "binary",
+      "signal_id": "no_audit_trail"
+    },
+    "no_logging": {
+      "description": "True if AI decisions are not logged at all, or logs are partial and not tamper-evident",
+      "derived_from": [
+        "controls.logging"
+      ],
+      "logic": "controls.logging == false",
+      "type": "binary",
+      "signal_id": "no_logging"
+    }
+  },
+  "gaps": [
+    {
+      "id": "G01",
+      "gap_id": "G01-CORE-BOUNDARY",
+      "title": "No decision boundary enforcement",
+      "version": "1.2",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "Decision Control",
+        "Agentic AI"
+      ],
+      "description": "There is no rule between what this AI system decides and what it does. You have a system that produces an output and that output becomes an action \u2014 nothing checks whether it should. When something goes wrong, you cannot show what governed the decision. Because nothing did.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Decision Boundary",
+      "plane": "Decision",
+      "group": "decision_control",
+      "evidence_signals": [
+        "Ask what rules govern this AI system. The answer is: there are none documented",
+        "The system produces an output and that output becomes an action \u2014 with nothing in between",
+        "No version-controlled policy exists defining what this system is and is not permitted to decide",
+        "Agent errors reach production with no interception point"
+      ],
+      "evidence_fields": [
+        "signals.has_automated_decision",
+        "controls.rule_enforcement"
+      ],
+      "risk": {
+        "regulatory": "Without a rule enforcement layer, you cannot show a regulator that this system was governed. That matters under UK GDPR, the FCA's operational standards and the SRA Code, depending on your sector. The absence of rules is not a gap to be filled \u2014 it is the finding.",
+        "operational": "When this system makes a mistake, it goes straight through to the client, the patient, or the employee. There is no catch. The first sign something is wrong is when someone affected tells you.",
+        "reputational": "If something goes wrong and you are asked what governance existed \u2014 the answer is none. That is a very difficult position to be in front of a board, an insurer or a regulator."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 22C",
+        "DUAA 2025",
+        "FCA Principle 3",
+        "SRA Code Rule 2.1(a)",
+        "DCB0160",
+        "EU AI Act Art 9"
+      ],
+      "remediation": [
+        "Introduce a step between this system's output and the action it takes. Even a simple documented ruleset \u2014 defining what the system is and is not allowed to decide \u2014 is a material improvement on nothing.",
+        "Write down the rules. What decisions is this system allowed to make? What should it escalate? Version-control the document so you can show it has been maintained.",
+        "Assign someone to own the ruleset. Their name, their role, their sign-off on any change. That is the minimum that makes this defensible."
+      ],
+      "dpia_mapping": {
+        "processing_description": "Automated decision-making by AI agent with no intermediate rule evaluation",
+        "risk": "High \u2014 automated decisions execute without governance control, creating uncontrolled processing with legal or significant effects on individuals",
+        "mitigation": "Implement rule enforcement layer; document decision logic; introduce human override mechanism",
+        "residual_risk": "Medium \u2014 after rule enforcement layer implemented, residual risk from rule configuration errors; requires version control and change management"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_automated_decision",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_rule_enforcement",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible after an incident \u2014 when someone asks what governance existed, and the honest answer is: none.",
+      "severity_plain": "Creates direct regulatory exposure. Without a rule enforcement layer, the organisation cannot demonstrate to a regulator, insurer or court that this AI system was governed. That position is very difficult to defend.",
+      "what_happens_next": "Introduce a rule evaluation layer between this system's output and the action it takes. Even a minimal documented ruleset is a material improvement on none. These issues can be identified and prioritised through a focused review of your AI decision flows.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_high_impact_no_override",
+          "then": 4,
+          "note": "High-impact decisions without override \u2014 boundary failure is immediately consequential"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 3,
+          "note": "Known incidents confirm gap is not hypothetical"
+        },
+        {
+          "if_signal": "no_rule_enforcement",
+          "then": 3,
+          "note": "No ruleset at all \u2014 gap is structural, not partial"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "G02",
+      "gap_id": "G02-CORE-PROVENANCE",
+      "title": "Provenance weakness",
+      "version": "1.2",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "Data Integrity",
+        "Input Validation"
+      ],
+      "description": "You are acting on data you cannot fully account for. Some of it comes from outside the organisation. None of it is validated before it reaches the system. If the data is wrong, the decision is wrong \u2014 and you cannot trace either back to a source.",
+      "severity": "MEDIUM",
+      "likelihood": "HIGH",
+      "priority": 3,
+      "control_area": "Data Provenance",
+      "plane": "Governance",
+      "group": "data_integrity",
+      "evidence_signals": [
+        "Ask where the data feeding this system comes from. The full answer is not available",
+        "External data sources are ingested with no validation step before they reach the system",
+        "No data source register exists documenting origin, update frequency and owner for each input",
+        "Input data quality is assumed, not verified"
+      ],
+      "evidence_fields": [
+        "signals.has_external_data",
+        "signals.has_weak_validation"
+      ],
+      "risk": {
+        "regulatory": "UK GDPR requires personal data to be accurate. If this system is making decisions about people based on unverified data, that is a breach of the accuracy principle \u2014 and it is difficult to defend if someone challenges a decision.",
+        "operational": "When a decision turns out to be based on bad data, you cannot reconstruct what happened. You do not know what the system received, so you cannot explain what it did. Root cause analysis becomes guesswork.",
+        "reputational": "Standard AI liability policies are starting to require documented input validation. Without it, an insurer has grounds to query a claim. That is worth knowing before something goes wrong."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 5(1)(d)",
+        "UK GDPR Art 22C",
+        "DUAA 2025",
+        "ICO Data Accuracy Guidance"
+      ],
+      "remediation": [
+        "List every data source feeding this system. Where does it come from? Who owns it? When was it last updated? Write that down. That list is your starting point.",
+        "Add a basic validation check before data reaches the system. At a minimum, flag inputs that fall outside expected ranges or schemas before they inform a decision.",
+        "Assign an owner to each data source. One person who is responsible for its accuracy and who gets notified when something looks wrong."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI processing of unverified or untraced external data in automated decision-making",
+        "risk": "Medium \u2014 decisions based on inaccurate or unverified data produces unfair or incorrect outcomes affecting individuals",
+        "mitigation": "Data source register; input validation layer; owner assignment per source; DPIA covering data quality controls",
+        "residual_risk": "Low-medium \u2014 after validation implemented, residual risk from data drift between validation runs; requires monitoring cadence"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_external_data",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.has_weak_validation",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible after an incident \u2014 when someone asks what data the system was acting on, and the honest answer is: we are not sure.",
+      "severity_plain": "Creates exposure under UK GDPR Article 5(1)(d). Decisions based on unverified inputs cannot be reconstructed if challenged. That is difficult to defend in any regulatory investigation.",
+      "what_happens_next": "Create a register of every data source feeding this system. Assign an owner and a validation status to each. These issues can be identified and prioritised through a focused review of your AI data inputs.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_weak_validation",
+          "then": 3,
+          "note": "Unvalidated external data elevates severity \u2014 corrupted inputs produce corrupted decisions"
+        },
+        {
+          "base": 2
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 3,
+          "note": "Known incidents involving data quality confirm provenance weakness is active"
+        },
+        {
+          "if_signal": "has_external_data",
+          "then": 2,
+          "note": "External data present \u2014 provenance risk is live"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "G03",
+      "gap_id": "G03-CORE-AUDIT",
+      "title": "Audit void",
+      "version": "1.2",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "Audit Trail",
+        "Record-Keeping"
+      ],
+      "description": "If someone asks what this system decided on a specific date, you cannot tell them. There is no sealed record of what the system decided or why. The logs that do exist can be changed. When something goes wrong, you are piecing together what happened \u2014 not looking it up.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Audit and Record-Keeping",
+      "plane": "Verification",
+      "group": "audit_capability",
+      "evidence_signals": [
+        "Ask for the record of a specific decision made last month. It cannot be produced",
+        "Decision logs exist but are not write-once \u2014 they can be altered after the fact",
+        "No retention policy governs how long decision records are kept",
+        "Root cause analysis after an incident relies on reconstruction, not retrieval"
+      ],
+      "evidence_fields": [
+        "controls.logging",
+        "controls.audit_trail"
+      ],
+      "risk": {
+        "regulatory": "UK GDPR gives individuals the right to contest automated decisions. That right requires a record to exist. Without one, you cannot respond. FCA and SRA requirements on record-keeping apply equally. Not having a record is itself a breach \u2014 separate from whatever the decision was.",
+        "operational": "When something goes wrong, you cannot find out what the system did, when it did it, or what it was acting on. You cannot investigate. You cannot learn from it. Every incident becomes more damaging because you have no account of what happened.",
+        "reputational": "Being unable to produce a decision record when a regulator, insurer or board asks for one is a significant red flag \u2014 independent of whether the underlying decision was right. It signals that the system has been running without oversight."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 22C",
+        "DUAA 2025",
+        "FCA Principle 3",
+        "SRA Code Rule 2.2",
+        "DCB0160",
+        "EU AI Act Art 12"
+      ],
+      "remediation": [
+        "Start logging every decision today. For each one: the date, what went in, what came out, what rule was applied. Store it in a way that cannot be edited after the fact.",
+        "Move from basic logging to a proper evidence record. Input received, rule applied, decision made, timestamp. Sealed. Immutable. That is what you show a regulator.",
+        "Decide how long you keep records. Write that down. Align it to whatever your sector requires."
+      ],
+      "dpia_mapping": {
+        "processing_description": "Automated decision-making by AI agent with no sealed contemporaneous record of decisions",
+        "risk": "High \u2014 inability to demonstrate lawfulness of processing; inability to respond to data subject rights requests; inability to evidence regulatory compliance",
+        "mitigation": "Implement sealed write-once audit trail; define retention policy; enable decision retrieval on request",
+        "residual_risk": "Low \u2014 after sealed audit trail implemented, residual risk from storage failure; requires backup and integrity verification"
+      },
+      "expr": {
+        "op": "any",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.no_logging",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_audit_trail",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible after a complaint or challenge \u2014 when someone asks for the decision record, and you cannot produce one.",
+      "severity_plain": "Creates direct exposure under UK GDPR Article 22C, FCA Principle 3 and SRA Code Rule 2.2 depending on sector. Absence of a sealed audit trail is itself a breach \u2014 independent of whether any underlying decision was wrong.",
+      "what_happens_next": "Start logging every decision this system makes today \u2014 date, input, output, rule applied \u2014 in a write-once store. This is the foundation. Every other governance control depends on it existing. These issues can be identified and prioritised through a focused review of your AI decision records.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 5,
+          "note": "Incidents occurred with no audit record \u2014 unknown harm cannot be quantified or defended"
+        },
+        {
+          "if_signal": "no_audit_trail",
+          "then": 4,
+          "note": "No sealed record \u2014 every decision made is individually indefensible"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_corrective_action",
+          "then": 3,
+          "note": "Known gap with no corrective action \u2014 breach is ongoing and accumulating"
+        },
+        {
+          "if_signal": "no_logging",
+          "then": 3,
+          "note": "Zero logging \u2014 gap is complete, not partial"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "G04",
+      "gap_id": "G04-CORE-ACCOUNTABILITY",
+      "title": "Accountability gap",
+      "version": "1.2",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "Human Oversight",
+        "Accountability"
+      ],
+      "description": "You have a named person who would carry responsibility if this system caused harm. But ask them to show what oversight they exercised last month \u2014 and there is nothing to show. The title exists. The mechanism does not. Being named as accountable without a way to evidence you were in control is not protection. It is personal liability.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Human Oversight and Accountability",
+      "plane": "Decision",
+      "group": "human_oversight",
+      "evidence_signals": [
+        "The person accountable for this AI system cannot point to a single oversight action they took in the last 90 days",
+        "No override mechanism exists \u2014 the accountable individual cannot intervene before a decision executes",
+        "No oversight log exists showing when the system was reviewed, challenged or corrected",
+        "Escalation conditions are not defined \u2014 every decision runs automatically regardless of risk"
+      ],
+      "evidence_fields": [
+        "signals.has_high_impact_no_override"
+      ],
+      "risk": {
+        "regulatory": "Every sector has a requirement for a named individual to own AI-influenced outcomes. UK GDPR, SM&CR, DCB0160, SRA \u2014 they all name the person, not the team. If that person cannot show they exercised oversight, they cannot discharge the obligation. Having the title without the record does not help.",
+        "operational": "When a decision causes harm, the accountable individual will be asked what they did to stay in control. If the answer is nothing on record, that is a personal liability \u2014 not just an organisational one.",
+        "reputational": "A board, an insurer or a regulator asking for evidence of oversight expects a record, not a job description. The absence of an oversight log is read as evidence that oversight was not exercised."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 22C",
+        "DUAA 2025",
+        "SM&CR",
+        "DCB0160",
+        "SRA Code Rule 9.1",
+        "EU AI Act Art 14"
+      ],
+      "remediation": [
+        "This week: have the accountable individual start keeping a log. Date, what was reviewed, what was decided. A simple document is enough. The record is what matters.",
+        "Define the conditions under which a decision gets escalated to that person before it runs. Write them down. Make sure the system or the team knows what those conditions are.",
+        "Make sure the accountable individual has a real mechanism to stop or change a decision \u2014 not just in theory, but in practice. If they cannot intervene, they cannot be meaningfully accountable."
+      ],
+      "dpia_mapping": {
+        "processing_description": "Automated decision-making with legal or significant effects on individuals and no named human accountable for oversight",
+        "risk": "High \u2014 individuals affected by AI decisions have no named human to appeal to; organisation has no mechanism to evidence governance was exercised",
+        "mitigation": "Designate named accountable individual; implement override mechanism; establish oversight log; define escalation conditions",
+        "residual_risk": "Low-medium \u2014 after accountability structure implemented, residual risk from accountable individual changing roles; requires succession plan and handover documentation"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_high_impact_no_override",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible after a harmful decision \u2014 when the accountable individual is asked what oversight they exercised, and there is nothing to show.",
+      "severity_plain": "Creates personal liability exposure for a named individual. Without an oversight record, the person formally accountable cannot demonstrate they were in control. That is very difficult to defend at board level, in an investigation, or in court.",
+      "what_happens_next": "Have the accountable individual start an oversight log this week \u2014 date, decision reviewed, action taken or confirmed. Even a simple log converts a job title into a defensible position. These issues can be identified and prioritised through a focused review of your AI accountability structure.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_high_impact_no_override",
+          "then": 4,
+          "note": "High-impact decisions, no named owner, no override \u2014 accountability is completely absent"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 3,
+          "note": "Incidents with no accountable individual \u2014 pattern of ungoverned operation confirmed"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "G05",
+      "gap_id": "G05-CORE-REMEDIATION",
+      "title": "Remediation path absent",
+      "version": "1.2",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "Governance Posture",
+        "Risk Management"
+      ],
+      "description": "You have multiple governance gaps and no plan to close any of them. You are aware of the problems. Nothing has been done. Every new AI system you deploy in this state adds to the risk. Regulators do not treat this as an oversight. They treat it as a choice.",
+      "severity": "CRITICAL",
+      "likelihood": "HIGH",
+      "priority": 1,
+      "control_area": "Governance Posture",
+      "plane": "All",
+      "group": "governance_posture",
+      "evidence_signals": [
+        "Ask for the AI governance roadmap. It does not exist \u2014 not even a one-page outline with milestones",
+        "An incident or near-miss has occurred and no corrective action was documented or taken",
+        "Multiple governance gaps are present simultaneously with no remediation plan",
+        "New AI systems are being deployed without governance review"
+      ],
+      "evidence_fields": [
+        "signals.all_gaps_present",
+        "signals.has_incidents",
+        "signals.no_corrective_action",
+        "signals.multiple_high_gaps",
+        "signals.no_remediation_roadmap"
+      ],
+      "risk": {
+        "regulatory": "A pattern of identified gaps with no corrective action is the worst thing to show a regulator. The ICO, FCA, SRA and CQC all treat the absence of a plan as evidence of wilful non-compliance. It is harder to defend than any individual gap.",
+        "operational": "Without a plan, the gap between how quickly AI is being deployed and how slowly governance is being built widens with every system added. At some point, something goes wrong \u2014 and there is no foundation to fall back on.",
+        "reputational": "In any investigation, the first question is what the organisation did when it knew about a problem. If the answer is nothing, that is the finding. The absence of a plan is its own evidence."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 24",
+        "FCA Principles 2 and 3",
+        "SRA Code Rule 2.5",
+        "ICO AI and Biometrics Strategy 2025/26",
+        "DCB0160"
+      ],
+      "remediation": [
+        "Name someone as responsible for AI governance. Write it down. Give them 30 days to produce a plan \u2014 even a one-page document with milestones is enough to establish that you are taking this seriously.",
+        "Review every live AI system against the three-plane model. Governance, Decision, Verification. Work out which elements are missing across each one.",
+        "Start with the Decision Plane and Verification Plane. These close the most serious gaps and produce the audit records that regulators and insurers need to see."
+      ],
+      "dpia_mapping": {
+        "processing_description": "Multiple ungoverned AI deployments operating without remediation roadmap or corrective action following identified incidents",
+        "risk": "Critical \u2014 pattern of inaction across multiple systems creates compounding regulatory exposure; each ungoverned deployment adds to systemic risk",
+        "mitigation": "Written governance roadmap with named owner and milestones; architecture review; immediate implementation of Decision and Verification Planes",
+        "residual_risk": "Medium \u2014 after roadmap produced, residual risk from implementation delays; requires milestone tracking and board-level accountability"
+      },
+      "expr": {
+        "op": "any",
+        "children": [
+          {
+            "op": "all",
+            "children": [
+              {
+                "op": "eq",
+                "field": "signals.all_gaps_present",
+                "value": true
+              },
+              {
+                "op": "eq",
+                "field": "signals.has_incidents",
+                "value": true
+              },
+              {
+                "op": "eq",
+                "field": "signals.no_corrective_action",
+                "value": true
+              }
+            ]
+          },
+          {
+            "op": "all",
+            "children": [
+              {
+                "op": "eq",
+                "field": "signals.multiple_high_gaps",
+                "value": true
+              },
+              {
+                "op": "eq",
+                "field": "signals.no_remediation_roadmap",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "pain_line": "This is the position that looks worst in any investigation \u2014 not a single gap, but a pattern of gaps with no plan. That is the evidence regulators use to distinguish oversight from wilful non-compliance.",
+      "severity_plain": "Creates the most serious compound exposure available. A pattern of unaddressed governance failures is harder to defend than any individual gap. This is what triggers supervisory intervention rather than a compliance notice.",
+      "what_happens_next": "Designate a named individual responsible for AI governance and give them 30 days to produce a written plan \u2014 even a one-page document with milestones is enough to show the organisation is taking this seriously. These issues can be identified and prioritised through a structured CLEARANCE engagement.",
+      "exposure_logic": [
+        {
+          "if_signal": "all_gaps_present",
+          "then": 5,
+          "note": "All structural gaps present simultaneously \u2014 remediation absence is catastrophic"
+        },
+        {
+          "if_signal": "no_corrective_action",
+          "then": 4,
+          "note": "Known incidents, no corrective action \u2014 knowing inaction"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_corrective_action",
+          "then": 3,
+          "note": "No corrective action documented \u2014 likelihood of continued unaddressed exposure is certain"
+        },
+        {
+          "if_signal": "multiple_high_gaps",
+          "then": 3,
+          "note": "Multiple high gaps with no roadmap \u2014 compounding exposure"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "HR-G06",
+      "gap_id": "HR-G06-MONITORING-DPIA",
+      "title": "No DPIA for AI employee monitoring activity",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "HR"
+      ],
+      "subdomain": [
+        "Employee Monitoring",
+        "Data Protection"
+      ],
+      "description": "You are using AI tools to monitor employees and no Data Protection Impact Assessment has been done. UK GDPR requires a DPIA before systematic AI monitoring of employees begins \u2014 not after, not retrospectively. Before. You started the monitoring without one. Every piece of data collected since then has no lawful foundation.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Employee Surveillance and Monitoring",
+      "plane": "Governance",
+      "group": "hr_monitoring",
+      "evidence_signals": [
+        "Ask for the DPIA completed before this monitoring tool was deployed. It does not exist",
+        "The monitoring tool went live before any privacy risk assessment was conducted",
+        "HR leadership is unaware that a DPIA is legally required before systematic employee monitoring begins",
+        "No ICO pre-consultation was conducted despite high residual risk from AI monitoring"
+      ],
+      "evidence_fields": [
+        "signals.has_employee_monitoring_ai",
+        "controls.audit_trail"
+      ],
+      "risk": {
+        "regulatory": "Running AI monitoring without a DPIA is unlawful from the day the monitoring started. That is an ICO enforcement matter \u2014 and it applies regardless of whether any individual has been harmed.",
+        "operational": "Any monitoring data gathered without a DPIA is legally compromised. It cannot safely be used in a performance review, a disciplinary process or any employment decision. If challenged, it falls apart.",
+        "reputational": "An ICO investigation that reveals employee monitoring without a DPIA is an employment story as much as a data protection one. Tribunal claims and enforcement action can run simultaneously."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 35",
+        "ICO Employment Practices Guidance",
+        "UK GDPR Art 5(1)(a)",
+        "Data Protection Act 2018"
+      ],
+      "remediation": [
+        "Stop using monitoring data in any employment decision until a DPIA has been completed for each monitoring tool.",
+        "Complete a DPIA. If it identifies high residual risk, consult the ICO before the monitoring resumes. Document the outcome.",
+        "Set up an annual DPIA review for all monitoring tools. Record it. Make sure the DPO owns it."
+      ],
+      "dpia_mapping": {
+        "processing_description": "Systematic AI-based monitoring of employees covering productivity, communications, location or behaviour without DPIA",
+        "risk": "High \u2014 systematic monitoring of employees is explicitly listed by ICO as processing likely to result in high risk requiring mandatory DPIA",
+        "mitigation": "Complete DPIA before monitoring commences; ICO pre-consultation where high residual risk identified; annual review",
+        "residual_risk": "Low \u2014 after DPIA completed and mitigations applied, residual risk from scope creep in monitoring; requires annual review and change management process"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_employee_monitoring_ai",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_audit_trail",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible during an ICO investigation or a data breach response \u2014 when a DPIA is requested and it becomes clear you never completed one.",
+      "severity_plain": "Creates direct ICO enforcement exposure. Operating AI monitoring without a DPIA is unlawful from the date the monitoring commenced \u2014 regardless of whether any harm has occurred. That is not a future risk. It is a current breach.",
+      "what_happens_next": "Stop using monitoring data in any employment decision until a DPIA is completed. Complete a DPIA for each monitoring tool before monitoring resumes. These issues can be identified and prioritised through a focused review of your HR monitoring practices.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 4,
+          "note": "Incidents involving monitoring data confirm DPIA absence is actively harmful"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_audit_trail",
+          "then": 3,
+          "note": "No audit trail for monitoring \u2014 ICO cannot be satisfied retrospectively"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "HR-G06b",
+      "gap_id": "HR-G06b-MONITORING-DISCLOSURE",
+      "title": "AI employee monitoring not disclosed to staff",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "HR"
+      ],
+      "subdomain": [
+        "Employee Monitoring",
+        "Transparency"
+      ],
+      "description": "You are monitoring employees using AI tools and no one told them before it started. Productivity is tracked. Communications are flagged. Attendance is analysed. Your employees do not know. Every piece of monitoring data you have collected is legally compromised \u2014 and cannot be used in any employment decision.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Employee Transparency",
+      "plane": "Governance",
+      "group": "hr_monitoring",
+      "evidence_signals": [
+        "Ask your employees whether AI tools are monitoring their productivity or communications. Most will say no \u2014 but the tools are running",
+        "No monitoring policy was communicated to employees before monitoring began",
+        "The employee privacy notice does not reference AI monitoring activity",
+        "No employee acknowledgement record exists confirming receipt of a monitoring disclosure"
+      ],
+      "evidence_fields": [
+        "signals.has_employee_monitoring_ai",
+        "signals.no_employee_monitoring_disclosure"
+      ],
+      "risk": {
+        "regulatory": "UK GDPR requires employees to be told about monitoring before it begins. Not in the small print of a contract signed three years ago \u2014 properly told, specifically, about what is being tracked and why. Monitoring without that disclosure is unlawful.",
+        "operational": "Monitoring data collected without proper disclosure cannot be used in a disciplinary or performance process. If an Employment Tribunal finds that monitoring was undisclosed, the data becomes inadmissible and the procedure fails.",
+        "reputational": "Covert AI surveillance of employees \u2014 discovered through a subject access request, a tribunal or a whistleblower \u2014 destroys trust. It is also exactly what the ICO and parliamentary committees have been scrutinising."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 5(1)(a)",
+        "UK GDPR Arts 13-14",
+        "ICO Employment Practices Guidance",
+        "Human Rights Act 1998 Art 8",
+        "Employment Rights Act 1996"
+      ],
+      "remediation": [
+        "Before the next working day: write a monitoring disclosure and send it to every affected employee. One page. Plain English. What is tracked, why, and what it is used for.",
+        "Update the employee privacy notice to include the monitoring activity. Get confirmation that employees have received it.",
+        "Review each monitoring tool. Can you demonstrate that the business objective requires this level of monitoring? If not, you need to document why it is proportionate."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI monitoring of employees without transparency disclosure \u2014 employees unaware of surveillance activity",
+        "risk": "High \u2014 processing personal data without transparency is unlawful under UK GDPR Art 5(1)(a); all monitoring data affected",
+        "mitigation": "Monitoring policy disclosed before monitoring recommences; privacy notice updated; staff acknowledgement recorded",
+        "residual_risk": "Low \u2014 after disclosure implemented, residual risk from policy not reaching all affected staff; requires distribution records"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_employee_monitoring_ai",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_employee_monitoring_disclosure",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when an employee submits a subject access request \u2014 and discovers they have been monitored by tools you never told them about.",
+      "severity_plain": "Creates direct ICO exposure under UK GDPR Article 5(1)(a). Undisclosed monitoring is unlawful. All monitoring data collected without disclosure is tainted \u2014 it cannot be used in performance reviews, disciplinary processes or employment decisions.",
+      "what_happens_next": "Before the next working day: draft a one-page monitoring disclosure and send it to all affected employees. Until you do, do not use monitoring data in any employment decision. These issues can be identified and prioritised through a focused review of your HR monitoring practices.",
+      "exposure_logic": [
+        {
+          "if_signal": "no_employee_monitoring_disclosure",
+          "then": 4,
+          "note": "Employees actively monitored without disclosure \u2014 transparency breach is confirmed"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "has_employee_monitoring_ai",
+          "then": 3,
+          "note": "Monitoring is live \u2014 disclosure gap affects every monitored employee now"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "HR-G07",
+      "gap_id": "HR-G07-PERFORMANCE",
+      "title": "Automated performance scoring without appeal mechanism",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "HR"
+      ],
+      "subdomain": [
+        "Performance Management",
+        "Employee Rights"
+      ],
+      "description": "You are using AI to score employees or candidates and no one can explain how. A manager cannot explain why the system scored someone low. The employee cannot challenge it. It affected pay, a promotion or a hiring decision \u2014 and you have no process for review.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Performance Management",
+      "plane": "Decision",
+      "group": "hr_performance",
+      "evidence_signals": [
+        "An employee has asked why their score was low. The honest answer is: the system produced it and there is no formal way to challenge it",
+        "Managers rely on AI scores without a process for explaining or reviewing them",
+        "No appeal mechanism exists for employees affected by AI-influenced assessments",
+        "The AI scoring tool has not been tested for bias across protected characteristics"
+      ],
+      "evidence_fields": [
+        "signals.has_performance_scoring_ai",
+        "signals.has_high_impact_no_override"
+      ],
+      "risk": {
+        "regulatory": "DUAA 2025 requires a right to human review where AI produces decisions with significant effects \u2014 and pay and promotion qualify. The Equality Act applies where AI scoring produces different outcomes across protected groups. Without an appeal process, neither obligation can be met.",
+        "operational": "Without a documented appeal mechanism, the employer cannot show a fair procedure at Employment Tribunal. An employee whose pay or promotion was affected by an AI score they cannot challenge has a straightforward procedural claim.",
+        "reputational": "AI scoring without transparency or appeal is one of the clearest examples of algorithmic management in public debate right now. An organisation that cannot explain how it scored its people has no defensible position."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 22C",
+        "DUAA 2025",
+        "Equality Act 2010",
+        "Employment Rights Act 1996 s.98",
+        "ACAS Code of Practice"
+      ],
+      "remediation": [
+        "This week: write a process \u2014 one paragraph \u2014 that tells employees how to ask for a human review of an AI-influenced score. Send it to all managers. That is the minimum.",
+        "Have the AI scoring tool tested for bias across protected characteristics before the next review cycle. Document the results.",
+        "Add a transparency notice to the performance process explaining that AI contributes to assessments and how someone can ask for a review."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI automated performance scoring producing significant effects on employment decisions without appeal mechanism",
+        "risk": "High \u2014 automated scoring affecting pay and promotion constitutes ADM with significant effects; absence of appeal mechanism fails Art 22C mandatory safeguards",
+        "mitigation": "Human review mechanism implemented; bias testing completed; transparency notice provided to employees",
+        "residual_risk": "Medium \u2014 after appeal mechanism implemented, residual risk from bias in underlying model; requires ongoing monitoring of outcomes across protected characteristics"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_performance_scoring_ai",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.has_high_impact_no_override",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible the moment an employee asks why their score was low \u2014 and the honest answer is: we don't know, and there is no way to challenge it.",
+      "severity_plain": "Creates exposure under DUAA 2025 Article 22C and the Equality Act 2010. Without an appeal mechanism, the employer cannot discharge mandatory ADM safeguards. A discrimination claim arising from AI scoring cannot be defended.",
+      "what_happens_next": "This week: create a one-paragraph process telling employees how to request a human review of an AI-influenced assessment. Send it to all managers. This is the minimum that makes the next challenge defensible. These issues can be identified and prioritised through a focused review of your HR AI processes.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_high_impact_no_override",
+          "then": 4,
+          "note": "AI performance scoring with no override or appeal \u2014 individual impact is uncontested"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_audit_trail",
+          "then": 3,
+          "note": "No record of how scores were calculated \u2014 appeal is impossible"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "HR-G08",
+      "gap_id": "HR-G08-DISCIPLINARY",
+      "title": "Disciplinary decision support without human adjudication record",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "HR"
+      ],
+      "subdomain": [
+        "Disciplinary Procedures",
+        "Record-Keeping"
+      ],
+      "description": "You used AI output in a disciplinary process and the file does not show the human decision. It shows what the AI produced. What the decision-maker concluded \u2014 in their own words, independently \u2014 is not there. That file cannot be defended at Employment Tribunal.",
+      "severity": "MEDIUM",
+      "likelihood": "MEDIUM",
+      "priority": 2,
+      "control_area": "Disciplinary Procedures",
+      "plane": "Verification",
+      "group": "hr_disciplinary",
+      "evidence_signals": [
+        "Pull a recent disciplinary file involving AI analysis. Find the paragraph showing the manager's independent reasoning. It is not there",
+        "Disciplinary documentation references AI output but contains no independent human reasoning",
+        "No procedure requires managers to document their reasoning separately from AI analysis",
+        "Appeal records do not show independent review of the AI contribution to the decision"
+      ],
+      "evidence_fields": [
+        "signals.has_disciplinary_ai",
+        "controls.audit_trail"
+      ],
+      "risk": {
+        "regulatory": "The ACAS Code requires documented, reasoned decisions for any disciplinary outcome. The Employment Rights Act requires a fair procedure as well as a fair reason. A file that shows AI output but no independent human reasoning fails both.",
+        "operational": "At Employment Tribunal, the employer must produce the decision record. Where that record shows AI output without independent human reasoning, the tribunal will question whether a human made the decision at all.",
+        "reputational": "An employee dismissed with AI involvement and no documented human reasoning is one of the most damaging HR stories going. The combination of AI and absent human judgment is exactly what media and regulators focus on."
+      },
+      "regulatory_links": [
+        "ACAS Code of Practice",
+        "Employment Rights Act 1996 s.98",
+        "Equality Act 2010",
+        "UK GDPR Art 22C",
+        "DUAA 2025"
+      ],
+      "remediation": [
+        "Update the disciplinary procedure to require managers to document their independent reasoning \u2014 separately from any AI output \u2014 before any outcome is communicated.",
+        "Train managers on what that means in practice. Not a summary of the AI. Their reasoning. In their words. Signed and dated.",
+        "Review any open disciplinary cases involving AI to check the record is complete before anything is communicated."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI-assisted disciplinary investigations with no sealed human adjudication record",
+        "risk": "Medium \u2014 AI involvement in disciplinary decisions without records creates Employment Tribunal exposure and Equality Act risk",
+        "mitigation": "Updated procedure requiring AI contribution documentation; human reasoning recorded contemporaneously; appeal process with independent reviewer",
+        "residual_risk": "Low \u2014 after documentation requirements embedded, residual risk from inconsistent application; requires manager training and periodic audit"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_disciplinary_ai",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_audit_trail",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible at Employment Tribunal \u2014 when you are asked to produce the decision record and the file shows AI output but no independent human reasoning.",
+      "severity_plain": "Creates direct Employment Tribunal exposure. Without a contemporaneous human decision record, the employer cannot satisfy the fair procedure requirement under Employment Rights Act 1996 s.98. That case is very difficult to defend.",
+      "what_happens_next": "Update the disciplinary procedure to require explicit documentation of AI tool use and the decision-maker's independent reasoning \u2014 before any outcome is communicated. These issues can be identified and prioritised through a focused review of your HR disciplinary processes.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 3,
+          "note": "Disciplinary decisions challenged \u2014 AI involvement without human record is indefensible"
+        },
+        {
+          "base": 2
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_audit_trail",
+          "then": 3,
+          "note": "No contemporaneous human adjudication record \u2014 every disciplinary decision is challengeable"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "HR-G09",
+      "gap_id": "HR-G09-ANALYTICS",
+      "title": "Workforce analytics AI without bias controls",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "HR"
+      ],
+      "subdomain": [
+        "Workforce Analytics",
+        "Equality Act"
+      ],
+      "description": "You are using AI tools to analyse workforce data \u2014 attrition, pay, headcount \u2014 and the outputs are informing decisions. None of these tools has been tested for bias. You do not know whether the outputs encode historical discrimination. You are acting on them anyway.",
+      "severity": "MEDIUM",
+      "likelihood": "HIGH",
+      "priority": 3,
+      "control_area": "Workforce Analytics",
+      "plane": "Governance",
+      "group": "hr_analytics",
+      "evidence_signals": [
+        "Ask when the workforce analytics tool was last tested for bias across protected characteristics. The answer is: never",
+        "Analytics outputs inform pay, promotion or retention decisions without any fairness review",
+        "No documentation exists of what protected characteristic data the model uses or excludes",
+        "No human sign-off is required before analytics outputs are acted on in decision cycles"
+      ],
+      "evidence_fields": [
+        "signals.uses_ai_for_workforce_analytics",
+        "controls.rule_enforcement"
+      ],
+      "risk": {
+        "regulatory": "The Equality Act applies where analytics outputs produce outcomes that disadvantage employees by a protected characteristic. A pay model that encodes historical pay gaps can perpetuate unlawful pay discrimination \u2014 regardless of intent.",
+        "operational": "Workforce decisions informed by biased analytics create Employment Tribunal risk. The employer cannot show the decision was objective if the underlying tool has never been tested for fairness.",
+        "reputational": "AI-driven pay or promotion bias discovered through an audit, a tribunal or a whistleblower is a headline story. Organisations cannot credibly claim responsible AI use while running untested analytics tools."
+      },
+      "regulatory_links": [
+        "Equality Act 2010 ss.13, 19, 71",
+        "Equal Pay Act provisions in Equality Act 2010",
+        "EHRC Employment Code of Practice",
+        "ICO AI Guidance"
+      ],
+      "remediation": [
+        "Before the next decision cycle using these analytics: identify every tool producing outputs that inform pay, promotion or retention, and assess each for bias risk.",
+        "Commission a bias assessment for each high-risk tool. Test the outputs for disparate impact across protected characteristics. Write down what you find.",
+        "Require a human sign-off before any analytics output is acted on. Document the review. That is what converts analytics from an input into a defensible decision."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI analytics processing employee personal data to inform workforce decisions without bias controls",
+        "risk": "Medium \u2014 analytics models encoding historical discriminatory patterns perpetuate bias in pay, promotion and retention decisions",
+        "mitigation": "Bias assessment per tool; fairness review before decision use; human sign-off; documentation of input variables and exclusions",
+        "residual_risk": "Low-medium \u2014 after bias controls implemented, residual risk from model drift as workforce composition changes; requires annual reassessment"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.uses_ai_for_workforce_analytics",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_rule_enforcement",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible during an equal pay audit or a discrimination claim \u2014 when the analytics outputs informing your decisions are examined and found to encode historical bias.",
+      "severity_plain": "Creates Equality Act 2010 exposure. Analytics models encoding historical workforce disparities produce discriminatory outcomes regardless of intent. The employer cannot demonstrate the decision was objective \u2014 because the model has never been tested.",
+      "what_happens_next": "Before the next decision cycle using these analytics: commission a bias assessment for each tool. Document what protected characteristic data it uses and what the outputs show across groups. These issues can be identified and prioritised through a focused review of your HR analytics practices.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 3,
+          "note": "Workforce analytics incidents \u2014 bias in data already causing operational harm"
+        },
+        {
+          "base": 2
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_rule_enforcement",
+          "then": 3,
+          "note": "No bias controls defined or enforced \u2014 discriminatory outputs are undetected"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "HR-G10",
+      "gap_id": "HR-G10-TERMINATION",
+      "title": "AI-assisted termination without sealed human decision record",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "HR"
+      ],
+      "subdomain": [
+        "Termination",
+        "Fair Dismissal"
+      ],
+      "description": "You dismissed or selected an employee for redundancy and AI output was part of the process. The written record shows what the AI produced. It does not show a paragraph where the decision-maker explains \u2014 in their own words \u2014 why they decided to proceed. That dismissal cannot be defended at tribunal.",
+      "severity": "HIGH",
+      "likelihood": "MEDIUM",
+      "priority": 2,
+      "control_area": "Termination and Redundancy",
+      "plane": "Verification",
+      "group": "hr_termination",
+      "evidence_signals": [
+        "Pull the file for the last AI-assisted termination. Find the paragraph where the decision-maker explains their independent reasoning. If that paragraph does not exist, this gap is present",
+        "Termination documentation references AI-generated analysis without independent human reasoning",
+        "No sealed audit trail of selection criteria applied and evidence reviewed exists",
+        "The appeal record was not produced by a reviewer independent of the original decision"
+      ],
+      "evidence_fields": [
+        "signals.has_ai_in_termination_process",
+        "controls.audit_trail"
+      ],
+      "risk": {
+        "regulatory": "The Employment Rights Act requires a fair reason and a fair procedure for any dismissal. Where AI contributed to the selection and no human decision record exists, the employer cannot demonstrate a fair procedure. ACAS requires documented reasoning. DUAA 2025 safeguards apply where selection was substantially automated.",
+        "operational": "At Employment Tribunal, the employer must produce the decision record. Where it shows AI output and nothing else, the case is very difficult to defend. Compensation can reach the statutory cap, with additional injury to feelings awards if discrimination is also found.",
+        "reputational": "An employee dismissed with AI involvement and no documented human reasoning is the most damaging AI HR story there is. It combines AI use, absent human judgment and job loss in a single case."
+      },
+      "regulatory_links": [
+        "Employment Rights Act 1996 s.98",
+        "ACAS Code of Practice",
+        "Equality Act 2010",
+        "UK GDPR Art 22C",
+        "DUAA 2025"
+      ],
+      "remediation": [
+        "For any termination currently in progress involving AI: before the decision is communicated, the decision-maker must write their independent reasoning. Signed. Dated. This cannot be done afterwards.",
+        "Update dismissal and redundancy procedures to require documentation of any AI tool used, the decision-maker's reasoning, and the basis for any reliance on or departure from the AI output.",
+        "Before any redundancy exercise using AI selection tools, test the tool for disparate impact across protected characteristics. Document the assessment in the exercise file."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI-assisted termination or redundancy selection producing significant effects on employment with no sealed human decision record",
+        "risk": "High \u2014 termination decisions informed by AI without human reasoning records create direct unfair dismissal and discrimination liability",
+        "mitigation": "Named human decision record required before any termination communicated; AI contribution documented in case file; fairness assessment of selection tool",
+        "residual_risk": "Low \u2014 after documentation requirements embedded, residual risk from inconsistent application; requires manager training and HR oversight"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_ai_in_termination_process",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_audit_trail",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible at Employment Tribunal \u2014 when you are asked to show the human decision, and the file shows only the AI output.",
+      "severity_plain": "Creates direct unfair dismissal exposure under Employment Rights Act 1996 s.98. Without a sealed human decision record, the employer cannot demonstrate a fair procedure. That case is very difficult to defend \u2014 and compensation can reach the statutory cap.",
+      "what_happens_next": "For any termination in progress: before the decision is communicated, the decision-maker must write their independent reasoning. Signed. Dated. This cannot be done retrospectively. These issues can be identified and prioritised through a focused review of your HR termination processes.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 5,
+          "note": "AI-influenced termination with incidents \u2014 employment tribunal exposure is immediate"
+        },
+        {
+          "if_signal": "no_audit_trail",
+          "then": 4,
+          "note": "No sealed human decision record \u2014 termination cannot be defended at tribunal"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "has_ai_in_termination_process",
+          "then": 3,
+          "note": "AI termination process is live \u2014 gap is active for every dismissal"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "LEG-G09",
+      "gap_id": "LEG-G09-HALLUCINATION",
+      "title": "AI-assisted legal drafting without hallucination controls",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Legal"
+      ],
+      "subdomain": [
+        "AI Drafting",
+        "Output Verification"
+      ],
+      "description": "You are using AI to draft legal content for clients and there is no verification step. Your fee earners are not required to check citations before sending. AI-generated content goes to your clients and to courts. You cannot show that any of it was checked.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Legal Output Integrity",
+      "plane": "Governance",
+      "group": "legal_drafting",
+      "evidence_signals": [
+        "Ask for the matter file notation confirming AI output was verified before the last client delivery. It does not exist",
+        "No protocol requires solicitors to check AI-generated citations against primary legal databases",
+        "Fee earners have received no guidance on what verification is required for AI-assisted work",
+        "No risk assessment of AI tool hallucination rates has been conducted"
+      ],
+      "evidence_fields": [
+        "signals.uses_ai_for_legal_drafting",
+        "controls.rule_enforcement"
+      ],
+      "risk": {
+        "regulatory": "The SRA requires solicitors to maintain competence and not mislead clients or courts. Submitting AI-generated content containing inaccuracies breaches both \u2014 even without intent. Courts have already issued wasted costs orders and referred firms to the SRA for exactly this.",
+        "operational": "A single AI hallucination reaching a client document or court submission can result in a wasted costs order, a negligence claim and an SRA investigation simultaneously. This risk applies to every AI-assisted matter without a verification step.",
+        "reputational": "The legal profession's value rests on accuracy. A hallucinated citation found by the other side, or by a judge, destroys that immediately \u2014 and publicly."
+      },
+      "regulatory_links": [
+        "SRA Principle 2",
+        "SRA Code Rule 1.4",
+        "SRA Code Rule 3.4",
+        "SRA Code Rule 4.2",
+        "Ayinde v London Borough of Hackney (2025)",
+        "Gloriose Ndaryiyumvire v Birmingham City University (2025)"
+      ],
+      "remediation": [
+        "Implement a mandatory verification step today. Every citation in every AI-assisted document must be checked against a primary legal database before anything is sent to a client or a court. No exceptions.",
+        "Add a file note requirement: for every AI-assisted matter, a note confirming who verified the output and when. That is your audit trail.",
+        "Assess each AI tool the firm uses for known hallucination rates in legal research. Make that assessment part of the approval process for any new tool."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI tools generating legal content for client matters without verification controls to detect or prevent hallucinations",
+        "risk": "High \u2014 unverified AI legal content reaching clients or courts creates professional liability, regulatory exposure, and client harm",
+        "mitigation": "Mandatory verification protocol; file notation confirming verification; AI tool risk assessment; fee earner training",
+        "residual_risk": "Low-medium \u2014 after verification protocol implemented, residual risk from human error in verification; requires QA sampling of verified matters"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.uses_ai_for_legal_drafting",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_rule_enforcement",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when a hallucinated citation reaches a court submission \u2014 at which point the consequences include wasted costs orders, SRA referral and permanent reputational damage.",
+      "severity_plain": "Creates direct SRA enforcement exposure and personal professional liability. Every AI-assisted matter without a verification protocol carries hallucination risk on every output. The supervising solicitor carries that risk personally \u2014 and it is difficult to defend once an error has reached a client or a court.",
+      "what_happens_next": "Implement a mandatory verification step for all AI-assisted drafting immediately \u2014 every citation checked against a primary database before any document is sent to a client or court. Add a file notation requirement confirming verification was completed. These issues can be identified through a focused review of your AI legal practice.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 5,
+          "note": "Hallucinations already reached clients or courts \u2014 SRA referral exposure confirmed"
+        },
+        {
+          "if_signal": "no_rule_enforcement",
+          "then": 4,
+          "note": "No verification protocol at all \u2014 every AI-assisted document carries unchecked hallucination risk"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "uses_ai_for_legal_drafting",
+          "then": 3,
+          "note": "AI drafting is live \u2014 hallucination risk is present in every matter"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "LEG-G10",
+      "gap_id": "LEG-G10-DISCLOSURE",
+      "title": "No client disclosure policy for AI involvement in matter",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Legal"
+      ],
+      "subdomain": [
+        "Client Disclosure",
+        "Transparency"
+      ],
+      "description": "You use AI in client matters and your clients are not told. You have no policy saying when disclosure is required or how it should be given. Different fee earners handle it differently. Some do not handle it at all. You have no documented basis for any disclosure decision made to date.",
+      "severity": "MEDIUM",
+      "likelihood": "HIGH",
+      "priority": 3,
+      "control_area": "Client Transparency and Disclosure",
+      "plane": "Governance",
+      "group": "legal_disclosure",
+      "evidence_signals": [
+        "Ask for the firm's AI disclosure policy. It does not exist",
+        "The standard terms of engagement do not reference AI tool usage",
+        "No matter file notation exists confirming whether AI was used and whether the client was informed",
+        "Fee earners have received no guidance on when to tell clients AI was used in their matter"
+      ],
+      "evidence_fields": [
+        "signals.uses_ai_for_legal_drafting",
+        "signals.no_client_ai_disclosure"
+      ],
+      "risk": {
+        "regulatory": "The SRA requires solicitors to act in their clients' best interests and to be transparent about how services are delivered. Where a client would reasonably want to know AI was used \u2014 and most would \u2014 failure to tell them sits uncomfortably against both obligations.",
+        "operational": "A client who discovers AI was used without disclosure \u2014 especially after an error \u2014 will almost certainly complain to the Legal Ombudsman and the SRA. Without a policy, the firm has no consistent basis for the decisions it has made and no defence.",
+        "reputational": "As AI disclosure becomes a standard expectation among clients and a focus of SRA transparency enforcement, firms without a policy are accumulating a problem on every AI-assisted matter they deliver."
+      },
+      "regulatory_links": [
+        "SRA Principle 7",
+        "SRA Transparency Rules",
+        "UK GDPR Arts 13-14",
+        "SRA Code Rule 1.4"
+      ],
+      "remediation": [
+        "Draft an AI disclosure policy within 30 days. It needs to say: when disclosure is required, what form it takes, and what the client can do if they object.",
+        "Update your standard terms of engagement to say that AI tools will be used in client work. Get client acknowledgement on instruction.",
+        "Add a file note for every new matter confirming whether AI was used and whether the client was told. That is your record going forward."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI tools processing client personal data in legal matters without transparency disclosure to clients",
+        "risk": "Medium \u2014 processing without transparency potentially breaches UK GDPR Arts 13/14 and SRA transparency obligations",
+        "mitigation": "AI disclosure policy; updated terms of engagement; matter-level disclosure records",
+        "residual_risk": "Low \u2014 after disclosure policy implemented, residual risk from inconsistent application; requires fee earner training and periodic audit"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.uses_ai_for_legal_drafting",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_client_ai_disclosure",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when a client discovers AI was used without disclosure \u2014 especially after an error. The complaint then covers both the underlying issue and the concealment.",
+      "severity_plain": "Creates SRA transparency exposure. Without a disclosure policy, the firm has no consistent basis for its disclosure decisions and no documented defence if challenged. As AI disclosure becomes standard client expectation, this gap accumulates on every AI-assisted matter delivered.",
+      "what_happens_next": "Draft an AI disclosure policy within 30 days \u2014 defining the disclosure threshold, the form of disclosure, and the client's right to object. Update standard terms of engagement. These issues can be identified through a focused review of your AI legal practice.",
+      "exposure_logic": [
+        {
+          "if_signal": "no_client_ai_disclosure",
+          "then": 3,
+          "note": "No disclosure policy exists \u2014 SRA transparency obligation is unmet for every matter"
+        },
+        {
+          "base": 2
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "uses_ai_for_legal_drafting",
+          "then": 3,
+          "note": "AI used in live matters \u2014 disclosure gap affects every current client"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "LEG-G11",
+      "gap_id": "LEG-G11-ADVICE-SUPERVISION",
+      "title": "AI-generated legal advice without supervision framework",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Legal"
+      ],
+      "subdomain": [
+        "Advice Supervision",
+        "Professional Liability"
+      ],
+      "description": "You are using AI to generate legal advice and there is no supervision framework. No standard defines who reviews AI advice output, to what depth, and how that review is recorded. You cannot distinguish reviewed from unreviewed AI advice in any client file. Every piece of unsupervised AI advice is a liability.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Legal Advice Quality",
+      "plane": "Governance",
+      "group": "legal_advice",
+      "evidence_signals": [
+        "Ask for the file notation confirming the last AI-assisted advice output was reviewed before delivery. It does not exist",
+        "No supervision framework names the reviewer, specifies the review standard, or requires a file notation",
+        "AI advice is delivered to clients without a record of independent solicitor review",
+        "No QA sampling programme exists to verify the framework is being applied"
+      ],
+      "evidence_fields": [
+        "signals.uses_ai_for_legal_advice",
+        "controls.rule_enforcement"
+      ],
+      "risk": {
+        "regulatory": "The SRA requires competent service and acting in the client's best interests. AI advice delivered without independent solicitor review fails both. Professional indemnity insurers are beginning to condition coverage on documented AI supervision controls.",
+        "operational": "A solicitor who delivers AI-generated advice without independent review carries personal professional liability for every error in that advice. Without a supervision framework, there is no way to show that review happened.",
+        "reputational": "A negligence claim from AI advice that was never properly reviewed is the highest-profile risk in legal AI right now. The client discovers simultaneously that AI was used and that it was unsupervised."
+      },
+      "regulatory_links": [
+        "SRA Code Rule 4.2",
+        "SRA Principle 7",
+        "SRA Code Rule 1.4",
+        "SRA Innovate: Compliance tips for solicitors",
+        "Professional Indemnity Insurance requirements"
+      ],
+      "remediation": [
+        "Today: require all fee earners to add a file note confirming they independently reviewed any AI-generated advice before it was sent. That is your minimum standing instruction.",
+        "Within 30 days: document the supervision framework. Who reviews AI advice for each matter type. What that review involves. How it is recorded.",
+        "Each quarter: sample a selection of AI-assisted advice matters to confirm the framework is being applied consistently."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI tools generating legal advice for clients without documented supervision or traceable human sign-off",
+        "risk": "High \u2014 unsupervised AI advice creates professional negligence liability and SRA regulatory exposure for every AI-assisted matter delivered without review",
+        "mitigation": "Supervision framework documented; file notation requirement; QA sampling programme",
+        "residual_risk": "Low \u2014 after supervision framework implemented, residual risk from notation being added without genuine review; requires QA audit"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.uses_ai_for_legal_advice",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_rule_enforcement",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when a client complaint reveals that AI-generated advice was delivered without independent review \u2014 and you have no record showing otherwise.",
+      "severity_plain": "Creates personal professional liability for every solicitor delivering AI-assisted advice without independent review. The firm cannot defend a negligence claim where the client file shows AI output and no evidence of supervision. That is a very difficult position.",
+      "what_happens_next": "Require all fee earners to add a file notation confirming independent review before any AI-assisted advice is delivered \u2014 implement as a standing instruction today. These issues can be identified through a focused review of your AI legal practice.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 4,
+          "note": "AI advice incidents \u2014 professional liability exposure confirmed"
+        },
+        {
+          "if_signal": "no_rule_enforcement",
+          "then": 4,
+          "note": "No supervision framework \u2014 AI advice reaches clients without any qualified review"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "uses_ai_for_legal_advice",
+          "then": 3,
+          "note": "AI advice is being delivered \u2014 supervision gap is active now"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "LEG-G12",
+      "gap_id": "LEG-G12-CONFIDENTIALITY",
+      "title": "Client data fed to AI tools without confidentiality controls",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Legal"
+      ],
+      "subdomain": [
+        "Client Confidentiality",
+        "Data Processing Agreements"
+      ],
+      "description": "You are processing client personal data through AI tools and you have no Data Processing Agreements in place. Client documents, correspondence and case files are going into systems under terms you have not checked. You do not know whether vendors are using client data for model training. This is a breach of client confidentiality and a breach of UK GDPR.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Client Confidentiality",
+      "plane": "Governance",
+      "group": "legal_confidentiality",
+      "evidence_signals": [
+        "Ask for the DPA with the AI vendor processing client data. It does not exist or has not been confirmed",
+        "Fee earners use AI tools with client documents and no approved tool register exists",
+        "No written confirmation from AI vendors that client data is not used for model training",
+        "No guidance has been issued telling fee earners which AI tools are approved for use with client data"
+      ],
+      "evidence_fields": [
+        "signals.uses_ai_with_client_data",
+        "controls.rule_enforcement"
+      ],
+      "risk": {
+        "regulatory": "UK GDPR requires a Data Processing Agreement before any vendor handles personal data on your behalf. Without one, the processing is unlawful from the start. SRA Code Rule 6.3 requires client information to be kept confidential. Feeding client data into an AI tool with unknown retention and training practices puts both obligations at risk.",
+        "operational": "Without a DPA, the firm has no contractual right to require the vendor to delete data, limit processing, or provide indemnity if something goes wrong. If the vendor suffers a breach, the firm has no remedies and is still the controller responsible to clients.",
+        "reputational": "Client confidentiality is the foundation of the solicitor-client relationship. An AI-related confidentiality breach \u2014 data retained, matter information used in training \u2014 is an existential risk for the practice."
+      },
+      "regulatory_links": [
+        "SRA Code Rule 6.3",
+        "UK GDPR Art 28",
+        "UK GDPR Art 5(1)(f)",
+        "ICO AI Guidance on personal data",
+        "Data Protection Act 2018"
+      ],
+      "remediation": [
+        "Identify every AI tool currently used with client data. Suspend any tool for which no DPA exists or where the training data position has not been confirmed in writing.",
+        "Execute DPAs with all AI vendors processing client data. Make sure the DPA covers sub-processors, audit rights, deletion obligations and breach notification.",
+        "Produce an approved tool register and communicate it to all fee earners. Every tool that touches client data must be on the list before it is used."
+      ],
+      "dpia_mapping": {
+        "processing_description": "Client personal data processed by AI vendors without Data Processing Agreements or confidentiality controls",
+        "risk": "High \u2014 unlawful processing of client data without DPA; potential training use of confidential matter information; breach of professional duty of confidentiality",
+        "mitigation": "DPAs executed with all AI vendors; approved tool register; training opt-out confirmed; fee earner guidance issued",
+        "residual_risk": "Low \u2014 after DPAs and approved tool register in place, residual risk from shadow AI use; requires periodic shadow AI audit"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.uses_ai_with_client_data",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_rule_enforcement",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when a fee earner uses a public AI tool with client documents \u2014 and you later discover the vendor retained that data for model training.",
+      "severity_plain": "Creates unlawful processing exposure under UK GDPR Article 28 and a breach of client confidentiality under SRA Code Rule 6.3. Without a DPA, the firm has no contractual basis to control what the vendor does with client data. That is not a future risk. It is a current breach.",
+      "what_happens_next": "Identify every AI tool in use with client data. Suspend use of any tool for which no DPA exists. Execute DPAs with all AI vendors before any client data is processed again. These issues can be identified through a focused review of your AI legal practice.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 5,
+          "note": "Client data incidents involving AI tools \u2014 SRA and ICO exposure confirmed simultaneously"
+        },
+        {
+          "if_signal": "uses_ai_with_client_data",
+          "then": 4,
+          "note": "Client personal data processing without DPA \u2014 each matter is a potential breach"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "uses_ai_with_client_data",
+          "then": 3,
+          "note": "Client data actively fed to AI tools \u2014 confidentiality gap is live for every matter"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "GDPR-G01",
+      "gap_id": "GDPR-G01-LAWFUL-BASIS",
+      "title": "No documented lawful basis for AI data processing",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "GDPR",
+        "Lawful Basis"
+      ],
+      "description": "You are processing personal data through this AI system and there is no documented lawful basis. The legal ground for processing was never identified. Never recorded. Every decision this system has made involving personal data is built on a foundation that does not exist in writing.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "GDPR Compliance",
+      "plane": "Governance",
+      "group": "gdpr_control",
+      "evidence_signals": [
+        "Ask for the record of lawful basis for this AI processing activity. It does not exist",
+        "The privacy notice does not specify the lawful basis for this AI processing activity",
+        "No Legitimate Interests Assessment exists where legitimate interests is the claimed basis",
+        "Special category data is processed without a documented Article 9 basis"
+      ],
+      "evidence_fields": [
+        "controls.rule_enforcement",
+        "controls.audit_trail"
+      ],
+      "risk": {
+        "regulatory": "UK GDPR requires a documented lawful basis before any personal data processing begins. Processing without one is unlawful from day one. The ICO treats absence of documented lawful basis as a primary enforcement finding \u2014 and fines can reach \u00a317.5m or 4% of global turnover.",
+        "operational": "Responding to a subject access request, a data breach or an ICO enquiry without a documented lawful basis leaves the organisation unable to justify its processing. Every decision informed by that processing is then open to challenge.",
+        "reputational": "ICO enforcement actions citing absence of lawful basis are public. In HR or legal contexts, this means employee or client data was processed unlawfully \u2014 a trust failure that compounds whatever else went wrong."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 6",
+        "UK GDPR Art 9",
+        "DUAA 2025",
+        "ICO Lawful Basis Guidance",
+        "Data Protection Act 2018"
+      ],
+      "remediation": [
+        "Map every AI processing activity involving personal data to a specific UK GDPR Article 6 lawful basis. Write it down in a processing register. Do this within 30 days.",
+        "Where legitimate interests is the chosen basis, complete a Legitimate Interests Assessment before processing continues.",
+        "For any processing of special category data, identify and document an Article 9 basis \u2014 explicit consent or statutory authority \u2014 before the next processing cycle."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI processing of personal data without documented lawful basis under UK GDPR Art 6",
+        "risk": "High \u2014 processing without lawful basis is unlawful from commencement; all resulting decisions and data affected",
+        "mitigation": "Processing register documenting lawful basis per activity; LIAs where required; Art 9 bases identified for special category data",
+        "residual_risk": "Low \u2014 after lawful basis documented, residual risk from basis becoming inappropriate as processing evolves; requires annual review"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.no_rule_enforcement",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_audit_trail",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible during an ICO investigation \u2014 when you are asked to produce your lawful basis documentation and discover it was never recorded.",
+      "severity_plain": "Creates direct ICO enforcement exposure. Processing personal data without a documented lawful basis is unlawful from day one. Fines of up to \u00a317.5m or 4% of global turnover apply. That is not a theoretical risk for an organisation under ICO scrutiny.",
+      "what_happens_next": "Map every AI processing activity involving personal data to a specific UK GDPR Article 6 lawful basis and record it in a processing register. Complete within 30 days. These issues can be identified and prioritised through a focused CLEARANCE engagement.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 4,
+          "note": "Incidents involving AI processing \u2014 unlawful basis applies retrospectively to every affected individual"
+        },
+        {
+          "if_signal": "has_high_impact_no_override",
+          "then": 4,
+          "note": "High-impact automated decisions without lawful basis \u2014 Art 22 exposure is direct"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_rule_enforcement",
+          "then": 3,
+          "note": "No documented controls \u2014 lawful basis gap is structural, not isolated"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "GDPR-G02",
+      "gap_id": "GDPR-G02-PURPOSE-LIMITATION",
+      "title": "Personal data used by AI beyond its original collection purpose",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "GDPR",
+        "Purpose Limitation"
+      ],
+      "description": "You collected personal data for one purpose and you are using it in AI systems for a different purpose. The people whose data you are using were never told this would happen. No compatibility assessment has been done. The processing does not have a legal basis.",
+      "severity": "MEDIUM",
+      "likelihood": "HIGH",
+      "priority": 3,
+      "control_area": "GDPR Compliance",
+      "plane": "Governance",
+      "group": "gdpr_control",
+      "evidence_signals": [
+        "Personal data collected for operational purposes is being used in AI systems without a compatibility assessment",
+        "No record of a purpose compatibility analysis under UK GDPR Article 5(1)(b) exists",
+        "Individuals were not informed at collection that their data would be used for AI processing",
+        "AI systems ingest historical data originally collected under a different privacy notice"
+      ],
+      "evidence_fields": [
+        "signals.has_external_data"
+      ],
+      "risk": {
+        "regulatory": "UK GDPR requires personal data to be used only for the purpose it was collected for, or a compatible one. Using employee or client data to feed or train AI systems without this assessment is a purpose limitation breach.",
+        "operational": "AI systems trained on data collected for a different purpose produce outputs that cannot be defended if challenged. The underlying data is legally compromised \u2014 and so is every decision the system has informed.",
+        "reputational": "People discovering that their data was used in AI systems they were never told about is a data rights story. In HR contexts it affects employees. In legal contexts it affects clients. Both are high-trust relationships."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 5(1)(b)",
+        "UK GDPR Art 6",
+        "DUAA 2025 Art 8A",
+        "ICO Purpose Limitation Guidance"
+      ],
+      "remediation": [
+        "Identify every AI processing activity where personal data is being used beyond its original purpose. Complete a compatibility assessment for each one under DUAA 2025 Article 8A.",
+        "Where the new purpose is not compatible, obtain fresh consent or identify a new lawful basis before the AI processing continues.",
+        "Update privacy notices to reflect AI uses of personal data so future collection is on the right basis."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI systems using personal data beyond original collection purpose without compatibility assessment",
+        "risk": "Medium \u2014 purpose limitation breach affects lawfulness of AI processing and any decisions it informs",
+        "mitigation": "Compatibility assessment per AI use; fresh consent or new lawful basis where incompatible; updated privacy notices",
+        "residual_risk": "Low \u2014 after compatibility documented, residual risk from processing scope expanding; requires change management process"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_external_data",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when an individual challenges how their data was used \u2014 and you discover it was feeding AI systems for a purpose they were never told about.",
+      "severity_plain": "Creates exposure under UK GDPR Article 5(1)(b). Purpose limitation is a foundational data protection principle. Its breach taints every decision the AI system has informed \u2014 and is difficult to remediate retrospectively.",
+      "what_happens_next": "Identify every AI processing activity using data beyond its original collection purpose. Complete a compatibility assessment for each under DUAA 2025 Article 8A. Update privacy notices before the next data collection cycle. These issues can be identified through a focused CLEARANCE engagement.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_weak_validation",
+          "then": 3,
+          "note": "Unvalidated external data with no purpose check \u2014 purpose creep is undetectable"
+        },
+        {
+          "base": 2
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "has_external_data",
+          "then": 3,
+          "note": "External data actively consumed \u2014 purpose limitation obligation is live"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "GDPR-G03",
+      "gap_id": "GDPR-G03-RETENTION",
+      "title": "No retention policy for AI-processed personal data",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "GDPR",
+        "Data Retention"
+      ],
+      "description": "You are keeping personal data processed by this AI system indefinitely. You have no retention schedule. You have no deletion process. Training data, decision logs and monitoring outputs are accumulating without limit. If a deletion request arrives, you cannot fulfil it \u2014 because you do not know where all the data is.",
+      "severity": "MEDIUM",
+      "likelihood": "HIGH",
+      "priority": 3,
+      "control_area": "GDPR Compliance",
+      "plane": "Governance",
+      "group": "gdpr_control",
+      "evidence_signals": [
+        "Ask for the retention schedule for AI-processed personal data. It does not exist",
+        "AI training datasets and decision logs have no defined retention period or deletion trigger",
+        "Vendor AI tools retain personal data beyond matter or employment close without contractual controls",
+        "No periodic deletion or anonymisation process is applied to AI-processed personal data"
+      ],
+      "evidence_fields": [
+        "controls.audit_trail"
+      ],
+      "risk": {
+        "regulatory": "UK GDPR requires personal data not to be kept longer than necessary. Keeping AI training data, decision logs or monitoring data without a defined end date is a storage limitation breach. The ICO has specifically targeted AI recruitment tools for retaining candidate data without retention limits.",
+        "operational": "Keeping more data than necessary makes any data breach worse \u2014 more people affected, higher fines. It also makes responding to deletion requests very difficult if the data is spread across AI systems with no retention controls.",
+        "reputational": "ICO enforcement for retention failures in AI contexts \u2014 particularly in recruitment and HR \u2014 is on the public register. Discovery of indefinitely retained candidate or employee AI data is an employment brand and regulatory credibility issue."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 5(1)(e)",
+        "UK GDPR Art 17",
+        "ICO Retention Guidance",
+        "ICO AI in Recruitment Audit Outcomes 2024"
+      ],
+      "remediation": [
+        "Define a retention schedule for every category of personal data this AI system processes. Training data, decision inputs, outputs, logs \u2014 each needs a specific period and a deletion trigger.",
+        "Implement scheduled deletion processes aligned to that schedule. Document how they work.",
+        "Include retention and deletion terms in all AI vendor contracts. Confirm compliance annually."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI systems retaining personal data indefinitely without retention schedule or deletion process",
+        "risk": "Medium \u2014 storage limitation breach; increased breach scope; inability to respond to deletion requests",
+        "mitigation": "Retention schedule per data category; automated deletion processes; vendor retention contractual controls",
+        "residual_risk": "Low \u2014 after retention schedule implemented, residual risk from new data categories not captured; requires annual schedule review"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.no_audit_trail",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when a deletion request arrives \u2014 and you discover you cannot locate all the AI-processed personal data because no retention schedule governed it.",
+      "severity_plain": "Creates ICO enforcement exposure under UK GDPR Article 5(1)(e). Indefinite retention of personal data is unlawful. It expands the scope and severity of any future data breach \u2014 more data retained means more individuals affected and higher fines.",
+      "what_happens_next": "Define a retention schedule for every category of AI-processed personal data \u2014 with a specific period and a deletion trigger. Implement automated deletion processes aligned to the schedule. These issues can be identified through a focused CLEARANCE engagement.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 3,
+          "note": "Incidents involving AI-processed data \u2014 retention gap compounds remediation complexity"
+        },
+        {
+          "base": 2
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_audit_trail",
+          "then": 3,
+          "note": "No audit trail means no retention policy is enforced \u2014 data accumulates without control"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "GDPR-G04",
+      "gap_id": "GDPR-G04-DSR-PROCESS",
+      "title": "No process for handling data subject rights in AI systems",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "GDPR",
+        "Data Subject Rights"
+      ],
+      "description": "Your employees and candidates have rights over how their personal data is used in AI decisions. They can ask for access, correction and human review. You have no process for responding to those requests as they relate to AI systems. When a request arrives, you cannot fulfil it.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "GDPR Compliance",
+      "plane": "Governance",
+      "group": "gdpr_control",
+      "evidence_signals": [
+        "AI systems holding personal data are not included in the organisation's data subject rights response workflow",
+        "The organisation cannot retrieve data about a specific individual from AI systems within the one-month response window",
+        "No process exists for fulfilling the Article 22C right to human review of automated decisions",
+        "The DUAA 2025 mandatory complaints process has not been implemented"
+      ],
+      "evidence_fields": [
+        "signals.has_automated_decision",
+        "signals.has_high_impact_no_override"
+      ],
+      "risk": {
+        "regulatory": "UK GDPR gives individuals the right to access, correct and contest AI-processed data and decisions. DUAA 2025 introduced a mandatory complaints process. Failure to respond to a subject access request within one month is a direct ICO enforcement trigger \u2014 and the ICO has confirmed this is a 2025/26 priority.",
+        "operational": "An employee who submits a subject access request and finds you cannot retrieve their data from AI systems, or a candidate who exercises their right to contest an automated decision and gets no response \u2014 both trigger ICO complaints.",
+        "reputational": "ICO enforcement actions for failure to respond to data subject requests are on the public record. In HR and legal contexts, the affected individuals are employees or clients. Both carry significant reputational weight."
+      },
+      "regulatory_links": [
+        "UK GDPR Arts 15-22",
+        "UK GDPR Art 22C",
+        "DUAA 2025",
+        "ICO DSR Guidance",
+        "Data Protection Act 2018 s.167"
+      ],
+      "remediation": [
+        "Map every AI system holding personal data into the data subject rights response process. Make sure you can retrieve, correct and delete data about a named individual within the one-month window.",
+        "Implement the Article 22C human review process. Document who responds, in what timeframe, and what review they conduct.",
+        "Implement the DUAA 2025 complaints mechanism \u2014 a documented, accessible route for individuals to raise concerns about AI processing, with acknowledgement within 30 days."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI processing of personal data with no documented DSR response process covering AI systems",
+        "risk": "High \u2014 inability to respond to DSRs involving AI data is a direct ICO enforcement trigger; Art 22C right to human review cannot be discharged",
+        "mitigation": "AI systems mapped into DSR workflow; Art 22C response process documented; DUAA 2025 complaints mechanism implemented",
+        "residual_risk": "Low \u2014 after DSR process documented, residual risk from new AI systems not captured; requires change management process for new deployments"
+      },
+      "expr": {
+        "op": "any",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_automated_decision",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.has_high_impact_no_override",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible the moment an employee or candidate exercises their right to contest an automated decision \u2014 and you cannot respond because the process does not exist.",
+      "severity_plain": "Creates direct ICO enforcement exposure. Failure to respond to a data subject rights request within one month is an independent enforcement trigger \u2014 separate from any underlying governance gap. The ICO has confirmed DSR response in AI contexts is a 2025/26 enforcement priority.",
+      "what_happens_next": "Map every AI system holding personal data into the data subject rights response workflow. Document the Article 22C human review process. Implement the DUAA 2025 complaints mechanism. These issues can be identified through a focused CLEARANCE engagement.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_high_impact_no_override",
+          "then": 4,
+          "note": "High-impact automated decisions \u2014 Art 22 DSR rights are mandatory and currently unmet"
+        },
+        {
+          "if_signal": "has_incidents",
+          "then": 4,
+          "note": "Complaints or near-misses \u2014 DSR requests are likely imminent"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "has_automated_decision",
+          "then": 3,
+          "note": "Automated decisions active \u2014 DSR obligation is live for every affected individual"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "GDPR-G05",
+      "gap_id": "GDPR-G05-VENDOR-DPA",
+      "title": "No Data Processing Agreements with AI vendors",
+      "version": "1.0",
+      "last_updated": "2026-04-10",
+      "domain": [
+        "Core",
+        "HR",
+        "Legal",
+        "Financial Services"
+      ],
+      "subdomain": [
+        "GDPR",
+        "Vendor Management"
+      ],
+      "description": "Your AI vendors are processing personal data on your behalf without Data Processing Agreements. You have no contractual right to require deletion, restrict processing, audit the vendor or claim indemnity if something goes wrong. The processing has been unlawful from the day it started.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "GDPR Compliance",
+      "plane": "Governance",
+      "group": "gdpr_control",
+      "evidence_signals": [
+        "Ask for the DPA with the AI vendor processing the most personal data. It does not exist",
+        "No AI vendor register exists listing every third party processing personal data on the organisation's behalf",
+        "No contractual confirmation that AI vendors do not use personal data for model training",
+        "No audit rights over AI vendors are in place"
+      ],
+      "evidence_fields": [
+        "controls.rule_enforcement"
+      ],
+      "risk": {
+        "regulatory": "UK GDPR requires a Data Processing Agreement before any vendor handles personal data on your behalf. Without one, the processing is unlawful. The organisation remains liable as controller for any breach by its AI vendors \u2014 including training data misuse and retention failures.",
+        "operational": "Without a DPA, there are no contractual rights over what the vendor does with the data. No right to audit. No right to require deletion. No indemnity if they cause a breach. If the vendor misuses the data, the organisation has no basis for remedy.",
+        "reputational": "A breach by an AI vendor processing client or employee data without a DPA creates joint liability \u2014 and the organisation cannot show it took reasonable steps to protect the data. In legal contexts, client confidentiality obligations make this a serious professional conduct matter."
+      },
+      "regulatory_links": [
+        "UK GDPR Art 28",
+        "UK GDPR Art 32",
+        "ICO Controller-Processor Guidance",
+        "SRA Code Rule 6.3 (Legal)",
+        "Data Protection Act 2018"
+      ],
+      "remediation": [
+        "List every AI vendor processing personal data on behalf of this organisation. Start there. No DPA work is possible without knowing who all the vendors are.",
+        "Execute UK GDPR Article 28-compliant DPAs with every vendor on that list. Include sub-processor controls, audit rights, deletion obligations and breach notification requirements.",
+        "Confirm in writing from every vendor that personal data is not used for model training without specific written consent. A tick-box opt-out is not enough."
+      ],
+      "dpia_mapping": {
+        "processing_description": "Personal data processed by AI vendors without Data Processing Agreements \u2014 unlawful third-party processing",
+        "risk": "High \u2014 processing without DPA is unlawful; controller liable for vendor breaches; no contractual remedies if vendor misuses data",
+        "mitigation": "AI vendor register; DPAs executed with all vendors; training use prohibition; sub-processor controls; audit rights",
+        "residual_risk": "Low \u2014 after DPAs in place, residual risk from vendor DPA breaches; requires annual vendor compliance review"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.no_rule_enforcement",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible during a vendor audit or a data breach \u2014 when it becomes clear you have no contractual right to require deletion, restrict processing or claim indemnity from the AI vendor.",
+      "severity_plain": "Creates unlawful processing exposure under UK GDPR Article 28. Without a DPA, the controller has no legal basis for the vendor's processing and no contractual remedies if the vendor misuses the data. Every day this continues without a DPA is a day of unlawful processing.",
+      "what_happens_next": "Produce a register of every AI vendor processing personal data on your behalf. Execute DPAs with all of them. Until DPAs are in place, affected tools should not be used with personal data. These issues can be identified through a focused CLEARANCE engagement.",
+      "exposure_logic": [
+        {
+          "if_signal": "uses_ai_with_client_data",
+          "then": 4,
+          "note": "Client personal data fed to AI vendors without DPA \u2014 controller liability is unlimited"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "has_external_data",
+          "then": 3,
+          "note": "External AI vendors actively used \u2014 DPA gap affects every data processing activity"
+        },
+        {
+          "if_signal": "no_rule_enforcement",
+          "then": 3,
+          "note": "No documented controls \u2014 vendor agreements are informal and unenforceable"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "FS-G13",
+      "gap_id": "FS-G13-SUITABILITY",
+      "title": "AI suitability assessment without individual compliance review",
+      "version": "1.0",
+      "last_updated": "2026-04-17",
+      "domain": [
+        "Financial Services"
+      ],
+      "subdomain": [
+        "Client Suitability",
+        "Consumer Duty"
+      ],
+      "description": "Your AI system is generating suitability assessments and client-facing outputs without individual compliance review for every decision. The FCA requires that suitability assessments reflect individual client circumstances and are subject to appropriate oversight. You cannot demonstrate that each automated assessment was reviewed before it reached the client.",
+      "severity": "CRITICAL",
+      "likelihood": "HIGH",
+      "priority": 1,
+      "control_area": "Client Suitability and Consumer Duty",
+      "plane": "Decision",
+      "group": "fs_suitability",
+      "evidence_signals": [
+        "Ask for the compliance sign-off record for the last 10 suitability assessments sent to clients. They do not exist",
+        "A defined percentage of client letters are generated and dispatched without individual review",
+        "No sampling protocol defines the minimum review rate or escalation threshold",
+        "Compliance team is unable to produce a complete record of how a specific client's suitability score was calculated on a specific date"
+      ],
+      "evidence_fields": [
+        "signals.has_automated_decision",
+        "signals.has_high_impact_no_override"
+      ],
+      "risk": {
+        "regulatory": "FCA Consumer Duty requires firms to evidence that clients receive outcomes that are in their interest. An automated suitability assessment dispatched without individual review \u2014 and without a reproducible audit record \u2014 fails that standard. This is an enforcement trigger, not a process gap.",
+        "operational": "If the FCA requests a suitability file for a specific client on a specific date and you cannot reproduce how the score was calculated, you have no defensible position. That is not a future risk \u2014 it applies to every assessment already sent.",
+        "reputational": "A mis-sold investment product traced to an unreviewed AI assessment creates regulatory, legal and media exposure simultaneously. The firm's authorisation is the terminal risk."
+      },
+      "regulatory_links": [
+        "FCA Consumer Duty (PS22/9)",
+        "FCA COBS 9A \u2014 Suitability",
+        "FCA Principle 12",
+        "SM&CR \u2014 Senior Manager accountability",
+        "UK GDPR Art 22C",
+        "DUAA 2025"
+      ],
+      "remediation": [
+        "Define and document a minimum individual review rate for all AI-generated suitability outputs. Any client below a defined portfolio threshold must still be subject to a periodic file review \u2014 not zero review.",
+        "Implement a sealed decision log for every suitability assessment: date, input data snapshot, score output, and review status. That log must be producible on FCA request within 24 hours.",
+        "Assign a named Senior Manager under SM&CR with documented accountability for AI-assisted suitability decisions. That accountability must be recorded in the Statements of Responsibilities.",
+        "Implement a client disclosure statement confirming AI involvement in suitability assessments: clients must be informed before a recommendation is made that AI has been used in the process, and must be told how to request a human review of their assessment. Retain disclosure records per client file. The FCA treats absence of disclosure as a Consumer Duty transparency failure independent of the suitability outcome."
+      ],
+      "dpia_mapping": {
+        "processing_description": "Automated AI suitability scoring and client-facing output generation without individual compliance review or reproducible decision record",
+        "risk": "Critical \u2014 automated financial decisions affecting individual client investments without reviewable audit trail; direct FCA enforcement and Consumer Duty exposure",
+        "mitigation": "Defined review rate; sealed decision log per assessment; SM&CR accountability assignment; sampling QA protocol",
+        "residual_risk": "Medium \u2014 after controls applied, residual risk from sampling gaps and model drift; requires quarterly review of assessment accuracy against client outcomes"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_finserv_suitability_ai",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.has_high_impact_no_override",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when the FCA requests a complete suitability file for a specific client and you cannot show how the score was calculated or whether it was reviewed before dispatch.",
+      "severity_plain": "Creates direct FCA enforcement exposure under Consumer Duty and COBS 9A. Every automated suitability assessment dispatched without a reviewable decision record and without client disclosure of AI involvement is individually indefensible. The absence of both controls is evidenceable on FCA request without the firm needing to have caused any harm.",
+      "what_happens_next": "Define a minimum individual review rate immediately. Implement a sealed decision log for every assessment. Assign SM&CR accountability in writing. These gaps can be identified and mapped through a structured diagnostic of your suitability assessment workflow.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 5,
+          "note": "Suitability complaints received \u2014 Consumer Duty and COBS 9A enforcement exposure confirmed"
+        },
+        {
+          "if_signal": "has_high_impact_no_override",
+          "then": 5,
+          "note": "High-impact suitability decisions, no override \u2014 every automated assessment is indefensible"
+        },
+        {
+          "base": 4
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_corrective_action",
+          "then": 3,
+          "note": "Known issues unaddressed \u2014 suitability gap is accumulating at volume"
+        },
+        {
+          "if_signal": "has_finserv_suitability_ai",
+          "then": 3,
+          "note": "Suitability AI is live \u2014 FCA exposure is present in every assessment dispatched"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "FS-G14",
+      "gap_id": "FS-G14-SMCR-ACCOUNTABILITY",
+      "title": "No named SM&CR accountable individual for AI decision systems",
+      "version": "1.0",
+      "last_updated": "2026-04-17",
+      "domain": [
+        "Financial Services"
+      ],
+      "subdomain": [
+        "SM&CR",
+        "Accountability"
+      ],
+      "description": "You are operating AI systems that make or materially influence consequential financial decisions and no Senior Manager has been named as accountable for those systems in their Statements of Responsibilities. The SM&CR requires that significant decisions and activities are owned by a named individual who can demonstrate they were in control. Your AI systems have no owner of that kind.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Senior Manager Accountability",
+      "plane": "Governance",
+      "group": "fs_accountability",
+      "evidence_signals": [
+        "Ask for the Statement of Responsibilities that assigns ownership of the AI decision system. It does not name one",
+        "No Senior Manager can produce documented evidence of oversight actions taken for the AI system in the last quarter",
+        "There is no escalation path from the AI system to a named individual who can intervene",
+        "The firm's Management Responsibilities Map does not reference AI systems as a distinct accountability area"
+      ],
+      "evidence_fields": [
+        "signals.has_automated_decision",
+        "signals.has_high_impact_no_override"
+      ],
+      "risk": {
+        "regulatory": "The FCA expects that every material activity is owned by a named Senior Manager. An AI system making client-facing financial decisions without a named SM&CR owner creates a direct accountability gap \u2014 one the FCA will identify immediately in a supervision visit.",
+        "operational": "Without a named accountable individual, no one can intervene in or override a decision the AI system makes. When something goes wrong \u2014 and it will \u2014 there is no one to produce as the responsible party. That compounds the enforcement exposure.",
+        "reputational": "An FCA enforcement action that identifies that no one was accountable for an AI system making financial decisions is categorically different from a process failure. It signals governance absence at board level."
+      },
+      "regulatory_links": [
+        "SM&CR \u2014 FCA Senior Managers Regime",
+        "FCA FIT \u2014 Statements of Responsibilities",
+        "FCA Principle 3 \u2014 Management and Control",
+        "FCA Principle 11 \u2014 Relations with Regulators",
+        "DUAA 2025"
+      ],
+      "remediation": [
+        "Identify the Senior Manager whose remit most closely covers the AI system's function. Update their Statement of Responsibilities to explicitly name the system and define the scope of their accountability.",
+        "Document the oversight actions that Senior Manager is expected to take \u2014 minimum review frequency, escalation triggers, override authority. That document becomes the governance record.",
+        "Include AI systems as a named category in the firm's Management Responsibilities Map at the next review cycle. Do not wait for the cycle \u2014 add an interim note now."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI systems making consequential financial decisions with no named Senior Manager accountable under SM&CR",
+        "risk": "High \u2014 absence of named SM&CR owner for material AI activity is a direct FCA governance gap; compounds all other risk exposure",
+        "mitigation": "Statement of Responsibilities updated; oversight protocol documented; Management Responsibilities Map updated",
+        "residual_risk": "Low \u2014 after named accountability established and documented, residual risk from role change or departure; requires succession planning for SM&CR AI ownership"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_automated_decision",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.has_high_impact_no_override",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible in an FCA supervision visit when the supervisor asks who is accountable for the AI system and no one can point to a name in a Statement of Responsibilities.",
+      "severity_plain": "Creates direct SM&CR accountability gap. The FCA expects every material activity to have a named Senior Manager owner documented in their Statement of Responsibilities. The absence of that named owner for an AI decision system is evidenceable from the firm's own governance documents \u2014 the FCA does not need to observe a failure. The gap exists and is provable the moment a supervision visit begins.",
+      "what_happens_next": "Update the relevant Statement of Responsibilities immediately to name the accountable Senior Manager. Document the oversight protocol. Add AI systems to the Management Responsibilities Map. These gaps are identifiable and fixable through a structured review of your SM&CR documentation.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 4,
+          "note": "Incidents with no named SM&CR owner \u2014 personal accountability gap is confirmed and active"
+        },
+        {
+          "if_signal": "has_high_impact_no_override",
+          "then": 4,
+          "note": "High-impact decisions, no named owner \u2014 SM&CR failure is provable from own documents"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_smcr_ai_owner",
+          "then": 3,
+          "note": "Confirmed: no SM&CR owner named \u2014 FCA supervision visit would identify this immediately"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "FS-G15",
+      "gap_id": "FS-G15-AUDIT-TRAIL",
+      "title": "No reproducible audit trail for AI-driven financial decisions",
+      "version": "1.0",
+      "last_updated": "2026-04-17",
+      "domain": [
+        "Financial Services"
+      ],
+      "subdomain": [
+        "Audit Trail",
+        "Decision Logging"
+      ],
+      "description": "Your AI system is making or materially influencing financial decisions and there is no tamper-evident, immutable audit trail showing what data was used, what output was produced, and what action followed. The FCA can request this record. You cannot produce it. Every decision made without this record is individually indefensible on request.",
+      "severity": "CRITICAL",
+      "likelihood": "HIGH",
+      "priority": 1,
+      "control_area": "Decision Record Integrity",
+      "plane": "Decision",
+      "group": "fs_audit",
+      "evidence_signals": [
+        "Ask for the complete decision record for a specific client decision made three months ago. It cannot be produced",
+        "Decision logs capture the output only \u2014 not the input data, model version, or the reasoning path",
+        "No write-once or tamper-evident logging mechanism exists for AI decision outputs",
+        "The firm cannot confirm which version of the AI model produced a specific historical decision"
+      ],
+      "evidence_fields": [
+        "signals.has_automated_decision",
+        "signals.has_incidents"
+      ],
+      "risk": {
+        "regulatory": "The FCA requires firms to maintain adequate records of their activities. An AI system producing client-facing outputs without a reproducible decision record fails that requirement. When the FCA asks \u2014 and they will ask \u2014 the absence of the record is the breach, independent of whether any harm occurred.",
+        "operational": "Without a reproducible audit trail, the firm cannot defend a complaint, respond to a Subject Access Request, or support an FCA information request within the required timeframe. Every day the system runs without logging is another day of undefended decisions accumulating.",
+        "reputational": "A firm that cannot show the FCA how a specific financial decision was made \u2014 even retrospectively \u2014 signals that governance is absent at a fundamental operational level."
+      },
+      "regulatory_links": [
+        "FCA Principle 3 \u2014 Management and Control",
+        "FCA SYSC 9 \u2014 Record-keeping",
+        "MiFID II / UK MiFIR \u2014 transaction and order record requirements",
+        "UK GDPR Art 5(1)(e) \u2014 storage limitation",
+        "UK GDPR Art 22C",
+        "DUAA 2025"
+      ],
+      "remediation": [
+        "Implement a tamper-evident, immutable decision log for every AI output: input data snapshot, model version identifier, output value, timestamp, and the action triggered. The log must be write-protected \u2014 no post-hoc modification permitted. This is the minimum reproducible record.",
+        "Define the retention period for decision logs in line with FCA SYSC 9 requirements for the relevant instrument or activity. Document it. Apply it consistently.",
+        "Run a retrospective audit of decisions made in the last 12 months. Identify the period for which no reproducible record exists. Flag that period as an unaudited exposure in your governance register.",
+        "Implement a controlled model change process: no change to the AI model \u2014 version update, parameter adjustment, or retraining \u2014 without a documented change record naming the approver, the date, and the version identifier. Without this, your audit trail breaks at every model change and historical decisions cannot be attributed to a specific model state."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI-generated financial decisions with no sealed, reproducible audit trail covering input data, model version, output and resulting action",
+        "risk": "Critical \u2014 absence of decision record means every FCA information request, SAR or complaint response is undefendable; direct SYSC 9 and UK GDPR breach",
+        "mitigation": "Write-once decision logging implemented; retention policy defined and applied; retrospective audit of unlogged period conducted",
+        "residual_risk": "Low \u2014 after logging implemented, residual risk from log integrity and storage failure; requires backup and integrity verification schedule"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_automated_decision",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_audit_trail",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible the first time the FCA requests a complete, reproducible decision record for a specific client on a specific date \u2014 and you cannot produce it, or cannot confirm which model version produced it.",
+      "severity_plain": "Creates direct FCA enforcement exposure under SYSC 9 and Consumer Duty. The absence of a tamper-evident, immutable audit trail is not a process weakness \u2014 it is a record-keeping breach that applies to every decision already made without one. That is a current exposure, not a future risk. The absence of the record is itself the breach.",
+      "what_happens_next": "Implement tamper-evident, immutable decision logging immediately. Define the retention period in line with SYSC 9. Implement a controlled model change process. Run a retrospective audit to identify the unlogged exposure period. These gaps are identifiable through a structured review of your AI decision architecture.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 5,
+          "note": "Incidents occurred with no tamper-evident record \u2014 breach is confirmed and undefendable"
+        },
+        {
+          "if_signal": "no_corrective_action",
+          "then": 5,
+          "note": "Known record absence, no corrective action \u2014 knowing inaction on SYSC 9 breach"
+        },
+        {
+          "if_signal": "no_audit_trail",
+          "then": 4,
+          "note": "No tamper-evident record \u2014 every decision made is indefensible on FCA request"
+        },
+        {
+          "base": 4
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_corrective_action",
+          "then": 3,
+          "note": "No corrective action taken \u2014 breach accumulates at decision volume rate"
+        },
+        {
+          "if_signal": "has_incidents",
+          "then": 3,
+          "note": "FCA or FOS already asking questions \u2014 likelihood of formal request is elevated"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "FS-G16",
+      "gap_id": "FS-G16-CONSUMER-DUTY-OUTCOME",
+      "title": "No evidence of good client outcomes from AI-driven processes",
+      "version": "1.0",
+      "last_updated": "2026-04-17",
+      "domain": [
+        "Financial Services"
+      ],
+      "subdomain": [
+        "Consumer Duty",
+        "Outcome Monitoring"
+      ],
+      "description": "Your AI system is producing client-facing outputs \u2014 recommendations, assessments, or decisions \u2014 and there is no evidence that those outputs deliver good outcomes for clients. Consumer Duty requires firms to be able to demonstrate this. You cannot. The outputs are going out and there is no documented basis on which to assert that they are delivering good outcomes.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 2,
+      "control_area": "Consumer Duty Outcome Monitoring",
+      "plane": "Governance",
+      "group": "fs_consumer_duty",
+      "evidence_signals": [
+        "Ask for the outcome monitoring data for AI-generated client recommendations from the last two quarters. It does not exist",
+        "No mechanism tracks whether clients who received AI-generated recommendations achieved expected outcomes",
+        "The annual Consumer Duty board report does not reference AI-assisted processes or their outcome data",
+        "No vulnerability assessment has been applied to AI-generated client outputs to identify at-risk segments"
+      ],
+      "evidence_fields": [
+        "signals.has_automated_decision",
+        "signals.no_remediation_roadmap"
+      ],
+      "risk": {
+        "regulatory": "FCA Consumer Duty (PS22/9) requires firms to monitor and evidence that their products and services deliver good outcomes for retail customers. An AI-driven process with no outcome monitoring fails that requirement at the point of the next supervisory review \u2014 or the next annual board attestation.",
+        "operational": "Without outcome monitoring, the firm cannot identify whether its AI system is systematically producing poor recommendations for any client segment. By the time the problem surfaces \u2014 through complaints or FCA review \u2014 the scale of remediation required is materially larger.",
+        "reputational": "The FCA's Consumer Duty framework was designed to catch exactly this pattern \u2014 a firm deploying automated processes that look efficient but cannot demonstrate client benefit. Enforcement action under Consumer Duty carries public censure."
+      },
+      "regulatory_links": [
+        "FCA Consumer Duty (PS22/9) \u2014 Outcome monitoring",
+        "FCA PRIN 12 \u2014 Consumer Duty",
+        "FCA FG22/5 \u2014 Final Non-Handbook Guidance",
+        "FCA Vulnerability Guidance (FG21/1)",
+        "UK GDPR Art 22C"
+      ],
+      "remediation": [
+        "Define the client outcomes your AI system is intended to deliver. Document them. These become the baseline against which you monitor \u2014 without a defined outcome, you cannot evidence achievement of it.",
+        "Implement a minimum quarterly outcome review covering AI-generated recommendations: complaint rates, client retention, product appropriateness challenges, and any FCA feedback. That review must be documented and presented to the board.",
+        "Apply a vulnerability screening step to AI-generated outputs before dispatch \u2014 identify whether any client segment is receiving systematically different or potentially harmful outputs and document what action is taken."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI-generated client-facing financial outputs with no outcome monitoring mechanism to evidence Consumer Duty compliance",
+        "risk": "High \u2014 absence of outcome monitoring fails Consumer Duty board attestation requirement; creates systemic harm risk for vulnerable client segments",
+        "mitigation": "Defined outcome baseline; quarterly outcome review documented and presented to board; vulnerability screening applied to AI outputs",
+        "residual_risk": "Low-medium \u2014 after monitoring implemented, residual risk from lag between output and measurable outcome; requires rolling 12-month outcome data for full compliance picture"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_automated_decision",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_outcome_monitoring",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible at the annual Consumer Duty board attestation \u2014 when the board is asked to confirm good client outcomes and there is no evidence that AI-assisted processes deliver them.",
+      "severity_plain": "Creates direct Consumer Duty enforcement exposure. The FCA requires firms to evidence good client outcomes \u2014 not assert them. An AI-driven process with no outcome evidence fails that standard at every board attestation cycle. The absence of outcome evidence is not a gap to be closed \u2014 it is a compliance failure that exists from the date the system went live without it.",
+      "what_happens_next": "Define the client outcomes your AI system is intended to deliver. Implement quarterly outcome monitoring. Apply vulnerability screening to AI outputs before dispatch. These gaps are identifiable through a structured review of your Consumer Duty governance documentation.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 4,
+          "note": "Client complaints with no outcome monitoring \u2014 Consumer Duty board attestation is unsupportable"
+        },
+        {
+          "if_signal": "no_outcome_monitoring",
+          "then": 4,
+          "note": "No outcome evidence exists \u2014 attestation failure is current, not future"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_corrective_action",
+          "then": 3,
+          "note": "Known gap unaddressed \u2014 FCA supervisory focus on Consumer Duty monitoring makes intervention likely"
+        },
+        {
+          "if_signal": "no_outcome_monitoring",
+          "then": 3,
+          "note": "No monitoring mechanism \u2014 outcome evidence gap grows with every AI output dispatched"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "FS-G17",
+      "gap_id": "FS-G17-ALGORITHMIC-BIAS",
+      "title": "No bias or fairness controls on AI-driven client decisions",
+      "version": "1.0",
+      "last_updated": "2026-04-17",
+      "domain": [
+        "Financial Services"
+      ],
+      "subdomain": [
+        "Algorithmic Fairness",
+        "Consumer Duty"
+      ],
+      "description": "Your AI system is producing recommendations or decisions that affect clients differently and there are no controls to detect or prevent systematic bias in those outputs. You have not assessed whether the system produces materially different outcomes for clients sharing a protected characteristic. The absence of a documented bias assessment is itself evidence of non-compliance when requested by the FCA. Additionally, clients have not been informed that AI is involved in the decisions affecting them \u2014 a disclosure obligation under Consumer Duty that the absence of a bias framework compounds.",
+      "severity": "HIGH",
+      "likelihood": "MEDIUM",
+      "priority": 2,
+      "control_area": "Algorithmic Fairness and Non-Discrimination",
+      "plane": "Governance",
+      "group": "fs_fairness",
+      "evidence_signals": [
+        "Ask for the bias assessment completed for the AI model before deployment. It does not exist",
+        "No demographic or protected characteristic analysis has been run against the AI system's output distribution",
+        "The model was not tested for differential outputs across age, gender or other protected characteristics before going live",
+        "No ongoing monitoring checks whether output distributions are shifting in ways that correlate with protected characteristics"
+      ],
+      "evidence_fields": [
+        "signals.has_automated_decision",
+        "signals.has_external_data"
+      ],
+      "risk": {
+        "regulatory": "The FCA expects firms to treat customers fairly and to identify and mitigate the risk of discriminatory outcomes from automated systems. The Equality Act 2010 applies to financial services. An AI system producing systematically different outcomes for clients sharing a protected characteristic \u2014 without detection \u2014 creates both FCA and Equality Act exposure simultaneously.",
+        "operational": "Algorithmic bias in a financial services context typically compounds over time \u2014 the longer the system runs without a bias assessment, the larger the cohort of clients who may have received systematically different treatment. Remediation at scale is operationally disruptive and expensive.",
+        "reputational": "An FCA or press investigation identifying that an AI system was making biased financial decisions \u2014 and that the firm had no controls to detect it \u2014 is categorically damaging. It cannot be defended as an oversight."
+      },
+      "regulatory_links": [
+        "FCA Consumer Duty (PS22/9) \u2014 Fair treatment",
+        "FCA Principle 6 \u2014 Customers' interests",
+        "Equality Act 2010 \u2014 ss.13, 19 (direct and indirect discrimination)",
+        "FCA FG22/5 \u2014 Final Non-Handbook Guidance on Consumer Duty",
+        "UK GDPR Art 22C",
+        "DUAA 2025"
+      ],
+      "remediation": [
+        "Commission a bias assessment of the AI model before the next deployment cycle \u2014 specifically testing for differential output distributions across age, gender, and other protected characteristics relevant to your client base. Document the outcome.",
+        "Implement ongoing output distribution monitoring: a quarterly statistical check on whether recommendation or decision outputs are shifting in ways that correlate with protected characteristics. Flag and investigate any statistically significant variance.",
+        "Add a fairness attestation to the model approval process for any AI system touching client-facing decisions: no model goes live without a documented bias assessment signed off by a named Senior Manager.",
+        "Implement a client disclosure statement for all AI-assisted financial decisions: clients must be informed, in plain English, that AI is used in the process affecting them, what it does, and how they can request a human review. Document the disclosure mechanism and retain records per matter. This is a Consumer Duty transparency requirement \u2014 the absence of disclosure is independently reviewable by the FCA."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI system producing client-facing financial decisions with no bias assessment or ongoing fairness monitoring for differential treatment of protected characteristic groups",
+        "risk": "High \u2014 undetected algorithmic bias in financial decisions creates simultaneous FCA Consumer Duty and Equality Act exposure; compounds over time as affected client cohort grows",
+        "mitigation": "Pre-deployment bias assessment; ongoing output distribution monitoring; fairness attestation in model approval process",
+        "residual_risk": "Medium \u2014 after controls applied, residual risk from proxy discrimination through non-protected variables and model drift; requires annual bias reassessment"
+      },
+      "expr": {
+        "op": "all",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_automated_decision",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.has_external_data",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when an FCA supervision visit or a client complaint prompts a review of output distributions \u2014 and the firm cannot demonstrate it ever checked whether its AI system was treating clients with protected characteristics differently.",
+      "severity_plain": "Creates concurrent FCA and Equality Act exposure. The absence of a documented bias assessment is itself evidence of non-compliance when the FCA requests it \u2014 it is not a future risk to be mitigated but a current, documentable failure. An AI system making client-facing financial decisions without a bias assessment and without client disclosure has no evidenced basis for fair treatment. Every decision made without that evidence is individually challengeable.",
+      "what_happens_next": "Commission a bias assessment of the AI model before the next deployment cycle. Implement quarterly output distribution monitoring. Add a fairness attestation to the model approval process. These gaps are identifiable through a structured review of your AI model governance documentation.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 4,
+          "note": "Complaints involving AI outputs \u2014 bias may already be causing differential harm at scale"
+        },
+        {
+          "if_signal": "has_external_data",
+          "then": 3,
+          "note": "External data feeds model \u2014 proxy discrimination risk is live and undetected"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_bias_assessment",
+          "then": 3,
+          "note": "No assessment ever conducted \u2014 FCA request would immediately surface absence as non-compliance"
+        },
+        {
+          "if_signal": "has_external_data",
+          "then": 2,
+          "note": "External data present \u2014 model behaviour influenced by unvalidated inputs"
+        },
+        {
+          "base": 2
+        }
+      ]
+    },
+    {
+      "id": "INS-G18",
+      "gap_id": "INS-G18-CLAIMS-EXPLAINABILITY",
+      "title": "AI-assisted claims or underwriting decision without consumer-facing explanation mechanism",
+      "version": "1.0",
+      "last_updated": "2026-04-30",
+      "domain": [
+        "Financial Services",
+        "Insurance"
+      ],
+      "subdomain": [
+        "Claims Governance",
+        "Underwriting Fairness",
+        "Consumer Duty"
+      ],
+      "description": "Your AI system is influencing claims outcomes, underwriting decisions, or pricing determinations and there is no mechanism to explain those decisions to the affected policyholder in plain terms. The consumer cannot understand why a claim was declined, a premium was set, or coverage was restricted \u2014 and has no documented route to challenge it. This is not an audit trail gap (G15) \u2014 it is a consumer-facing transparency failure. FCA Consumer Duty requires firms to demonstrate that AI-assisted decisions produce good outcomes and that consumers can understand and contest them. EIOPA has separately identified explainability as a supervisory priority for insurance AI. The absence of an explanation mechanism is independently reviewable and cannot be defended as a resourcing constraint.",
+      "severity": "HIGH",
+      "likelihood": "HIGH",
+      "priority": 1,
+      "control_area": "Consumer Explainability and Decision Transparency",
+      "plane": "Governance",
+      "group": "ins_fairness",
+      "evidence_signals": [
+        "Ask for the standard explanation issued to a policyholder when an AI system influences a claim decline. It does not exist or is a generic template with no decision-specific content",
+        "No process exists for a policyholder to request a human review of an AI-assisted underwriting or claims decision",
+        "The firm cannot produce a documented explanation chain linking the AI output to the decision communicated to the consumer",
+        "No disclosure is made to the consumer that AI was involved in the decision affecting them"
+      ],
+      "evidence_fields": [
+        "signals.has_automated_decision",
+        "signals.no_client_ai_disclosure"
+      ],
+      "risk": {
+        "regulatory": "FCA Consumer Duty (PS22/9) requires firms to demonstrate good outcomes for retail customers \u2014 an AI-assisted claims or underwriting decision that the consumer cannot understand or challenge is a documented Consumer Duty failure. EIOPA's February 2025 consultation on AI governance explicitly identifies explainability as a supervisory expectation for insurers. The EU AI Act classifies insurance underwriting AI as high-risk, mandating human oversight and transparency obligations from August 2026.",
+        "operational": "Without an explanation mechanism, every disputed claim or underwriting decision requires ad hoc reconstruction \u2014 an expensive, inconsistent, and legally exposed process. A single FOS complaint or FCA supervisory visit that reveals the absence of an explanation framework escalates from a process gap to a governance failure.",
+        "reputational": "An insurer that cannot explain to a policyholder why their claim was declined \u2014 and cannot demonstrate that AI was not the sole decision-maker \u2014 faces press and regulatory exposure that is disproportionate to the cost of implementing the control."
+      },
+      "regulatory_links": [
+        "FCA Consumer Duty (PS22/9) \u2014 good outcomes, consumer understanding",
+        "FCA Principle 6 \u2014 Customers' interests",
+        "FCA Principle 7 \u2014 Communications with clients",
+        "EU AI Act Art 13 \u2014 Transparency (high-risk AI systems), applicable August 2026",
+        "EIOPA Opinion on AI Governance and Risk Management, February 2025",
+        "UK GDPR Art 22 \u2014 Automated decision-making and profiling",
+        "Financial Ombudsman Service \u2014 complaints jurisdiction over AI-assisted decisions",
+        "Equality Act 2010 \u2014 ss.13, 19"
+      ],
+      "remediation": [
+        "Define and document an explanation standard for all AI-assisted claims and underwriting decisions: for each decision type, specify what the consumer must be told \u2014 in plain English \u2014 about what AI assessed, what it concluded, and what the consumer can do next. Template the explanation, do not leave it to individual handlers.",
+        "Implement a documented human review pathway: any consumer who disputes an AI-assisted decision must have a named, accessible route to a human adjudicator who can override the AI output. Record every invocation and outcome.",
+        "Add consumer AI disclosure to all policy documentation and decision communications: the consumer must be informed that AI is used in the process affecting them before the decision is made, not after. This is a Consumer Duty transparency requirement independent of the explainability obligation.",
+        "Map each AI-assisted decision type to a DPIA: document the processing, the explanation standard, the human override mechanism, and the residual risk. This is the audit artefact that satisfies both FCA and EIOPA supervisory requests."
+      ],
+      "dpia_mapping": {
+        "processing_description": "AI system influencing claims decline, underwriting, or pricing decisions for retail policyholders without a documented consumer-facing explanation mechanism or human review pathway",
+        "risk": "High \u2014 Consumer Duty failure and EU AI Act high-risk classification create concurrent FCA and EIOPA exposure; FOS complaints jurisdiction means individual decisions are directly challengeable",
+        "mitigation": "Documented explanation standard per decision type; consumer AI disclosure in policy communications; named human review pathway with recorded outcomes",
+        "residual_risk": "Medium \u2014 after controls applied, residual risk from explanation quality (plain English standard is subjective) and model drift changing decision distributions without updating explanation templates; annual review required"
+      },
+      "expr": {
+        "op": "any",
+        "children": [
+          {
+            "op": "eq",
+            "field": "signals.has_automated_decision",
+            "value": true
+          },
+          {
+            "op": "eq",
+            "field": "signals.no_client_ai_disclosure",
+            "value": true
+          }
+        ]
+      },
+      "pain_line": "This becomes visible when a policyholder complains to the FOS that they were not told why their claim was declined \u2014 and the firm cannot produce a decision-specific explanation or demonstrate that a human reviewed the AI output.",
+      "severity_plain": "Every AI-assisted claims or underwriting decision made without a consumer-facing explanation mechanism is individually challengeable at the FOS. The FCA and EIOPA have both identified explainability as a live supervisory priority for insurance AI \u2014 this is not an emerging risk. The absence of the control is the finding.",
+      "what_happens_next": "Define an explanation standard for each AI-assisted decision type. Implement a documented human review pathway. Add consumer AI disclosure to all policy communications. These are process controls \u2014 they do not require technical changes to the AI system itself.",
+      "exposure_logic": [
+        {
+          "if_signal": "has_incidents",
+          "then": 4,
+          "note": "Existing complaints signal that AI decisions are already being challenged without an explanation framework in place"
+        },
+        {
+          "if_signal": "no_client_ai_disclosure",
+          "then": 4,
+          "note": "No disclosure means no explanation framework \u2014 Consumer Duty failure is current and documentable"
+        },
+        {
+          "base": 3
+        }
+      ],
+      "recurrence_logic": [
+        {
+          "if_signal": "no_client_ai_disclosure",
+          "then": 3,
+          "note": "Absence of disclosure confirms no explanation mechanism exists \u2014 FOS or FCA request would immediately surface the gap"
+        },
+        {
+          "if_signal": "has_automated_decision",
+          "then": 2,
+          "note": "Automated decisions are in production \u2014 the gap is live with every decision made"
+        },
+        {
+          "base": 2
+        }
+      ]
+    }
+  ],
+  "fs_modifiers": {
+    "description": "Friction Signal modifiers \u2014 signals that boost severity or likelihood of any fired gap when present. Applied after gap evaluation, before priority calculation.",
+    "application_rule": "For each fired gap: check each modifier. If if_signal is true and gap_id matches applies_to (or applies_to=['all']), add severity_boost to gap severity_score and likelihood_boost to gap likelihood_score before computing priority.",
+    "modifiers": {
+      "no_smcr_ai_owner": {
+        "applies_to": [
+          "all"
+        ],
+        "severity_boost": 0,
+        "likelihood_boost": 1,
+        "reason": "Absence of named SM&CR owner elevates likelihood across all gaps \u2014 no individual is accountable for oversight or remediation, increasing probability that gaps persist and compound"
+      },
+      "has_incidents": {
+        "applies_to": [
+          "G01-CORE-BOUNDARY",
+          "G03-CORE-AUDIT",
+          "G05-CORE-REMEDIATION",
+          "FS-G15-AUDIT-TRAIL"
+        ],
+        "severity_boost": 1,
+        "likelihood_boost": 0,
+        "reason": "Known incidents confirm the gap is not theoretical \u2014 severity elevated for boundary, audit and remediation gaps where incident evidence is most damaging"
+      },
+      "no_corrective_action": {
+        "applies_to": [
+          "G05-CORE-REMEDIATION",
+          "FS-G15-AUDIT-TRAIL"
+        ],
+        "severity_boost": 1,
+        "likelihood_boost": 1,
+        "reason": "Known gap with documented inaction \u2014 knowing inaction is the most severe governance posture. Both severity and likelihood elevated for remediation and audit trail gaps where inaction narrative is most consequential"
+      },
+      "no_outcome_monitoring": {
+        "applies_to": [
+          "FS-G16-CONSUMER-DUTY-OUTCOME"
+        ],
+        "severity_boost": 1,
+        "likelihood_boost": 0,
+        "reason": "Complete absence of Consumer Duty outcome monitoring elevates severity \u2014 board attestation failure is a current, documented compliance absence rather than a process gap"
+      },
+      "no_bias_assessment": {
+        "applies_to": [
+          "FS-G17-ALGORITHMIC-BIAS"
+        ],
+        "severity_boost": 1,
+        "likelihood_boost": 0,
+        "reason": "Absence of any documented bias assessment is itself evidence of non-compliance on FCA request \u2014 elevates severity beyond the gap being merely unaddressed"
+      },
+      "all_gaps_present": {
+        "applies_to": [
+          "G05-CORE-REMEDIATION"
+        ],
+        "severity_boost": 1,
+        "likelihood_boost": 1,
+        "reason": "All structural gaps simultaneously present \u2014 compounding exposure elevates both severity and likelihood for the remediation gap to maximum"
+      }
+    }
+  },
+  "scoring_executor": {
+    "description": "Deterministic scoring pipeline \u2014 applied to every fired gap after gap evaluation",
+    "version": "1.0",
+    "steps": [
+      {
+        "step": 1,
+        "name": "Base score resolution",
+        "logic": "Evaluate severity_logic rules top-to-bottom. Return score from first rule where if_signal evaluates true. If no rule matches, return base value.",
+        "output": "severity_score (integer 1-5), likelihood_score (integer 1-5)"
+      },
+      {
+        "step": 2,
+        "name": "FS modifier application",
+        "logic": "For each modifier in fs_modifiers: if if_signal is true AND gap_id is in applies_to (or applies_to=['all']), add severity_boost and likelihood_boost to scores. Cap at 5.",
+        "output": "adjusted_severity_score, adjusted_likelihood_score"
+      },
+      {
+        "step": 3,
+        "name": "Priority calculation",
+        "logic": "priority_score = min(adjusted_severity_score, 5) * min(adjusted_likelihood_score, 5)",
+        "output": "priority_score (integer 1-25)"
+      },
+      {
+        "step": 4,
+        "name": "Priority label assignment",
+        "logic": "CRITICAL if >=12, HIGH if >=6, MEDIUM if >=3, LOW if >=1",
+        "output": "priority_label (CRITICAL / HIGH / MEDIUM / LOW)"
+      }
+    ]
+  }
+}
